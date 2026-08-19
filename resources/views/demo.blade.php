@@ -68,25 +68,29 @@
 
         <!-- Top Navigation Header -->
         <header class="border-b border-white/10 bg-black/60 backdrop-blur-xl sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <a href="/" class="w-8 h-8 bg-white text-black font-bold flex items-center justify-center rounded-lg hover:scale-105 transition">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+                <!-- Brand / Logo -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <a href="/" class="w-8 h-8 bg-white text-black font-bold flex items-center justify-center rounded-lg hover:scale-105 transition shrink-0">
                         <i data-lucide="layers" class="w-4 h-4"></i>
                     </a>
-                    <span class="font-bold text-lg text-white tracking-tight">ReconAgent</span>
-                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-neutral-400">Simulator v1.0</span>
+                    <span class="font-bold text-base sm:text-lg text-white tracking-tight">ReconAgent</span>
+                    <span class="text-[10px] sm:text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-neutral-400">v1.0</span>
                 </div>
                 
+                <!-- Navigation Actions (Desktop + Mobile Responsive) -->
                 <div class="flex items-center gap-2">
-                    <a href="/" class="text-xs font-medium text-neutral-400 hover:text-white transition px-3 py-1.5 rounded-lg border border-white/10 bg-white/5">
-                        &larr; Back to Landing Page
+                    <a href="/" class="text-xs font-medium text-neutral-400 hover:text-white transition px-2.5 sm:px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 flex items-center gap-1.5">
+                        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">Back to Landing Page</span>
+                        <span class="sm:hidden">Back</span>
                     </a>
                 </div>
             </div>
         </header>
 
         <!-- Main Application Interface -->
-        <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             <!-- Left Column: Input Simulation Controls (5 Cols) -->
             <div class="lg:col-span-5 space-y-6">
@@ -208,27 +212,27 @@
                         <div id="step-1" class="p-3.5 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between transition-all duration-300">
                             <div class="flex items-center gap-3">
                                 <div class="step-icon w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-neutral-400">1</div>
-                                <span>Data Ingestion & Normalization</span>
+                                <span class="step-label font-medium text-text-muted text-sm">Data Ingestion & Normalization</span>
                             </div>
-                            <span class="step-state text-neutral-500">Pending</span>
+                            <span class="step-state step-status text-neutral-500">Pending</span>
                         </div>
 
                         <!-- Step 2 -->
                         <div id="step-2" class="p-3.5 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between transition-all duration-300">
                             <div class="flex items-center gap-3">
                                 <div class="step-icon w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-neutral-400">2</div>
-                                <span>Deterministic Match Verification</span>
+                                <span class="step-label font-medium text-text-muted text-sm">Deterministic Match Verification</span>
                             </div>
-                            <span class="step-state text-neutral-500">Pending</span>
+                            <span class="step-state step-status text-neutral-500">Pending</span>
                         </div>
 
                         <!-- Step 3 -->
                         <div id="step-3" class="p-3.5 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between transition-all duration-300">
                             <div class="flex items-center gap-3">
                                 <div class="step-icon w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-neutral-400">3</div>
-                                <span>ML Scoring & Distance Weights</span>
+                                <span class="step-label font-medium text-text-muted text-sm">ML Scoring & Distance Weights</span>
                             </div>
-                            <span class="step-state text-neutral-500">Pending</span>
+                            <span class="step-state step-status text-neutral-500">Pending</span>
                         </div>
                     </div>
 
@@ -290,10 +294,10 @@
                     <span>ReconEngine Infrastructure Operational</span>
                 </div>
                 <p>&copy; 2026 ReconAgent Inc. All rights reserved.</p>
-                <div class="flex items-center gap-4">
-                    <a href="#" class="hover:text-white transition">Docs</a>
-                    <a href="#" class="hover:text-white transition">API Status</a>
-                    <a href="#" class="hover:text-white transition">Privacy</a>
+                <div class="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+                    <a href="/help-center" class="hover:text-white transition">Help Center</a>
+                    <a href="/system-status" class="text-white">System Status</a>
+                    <a href="/privacy" class="hover:text-white transition">Privacy & Terms</a>
                 </div>
             </div>
         </footer>
@@ -362,144 +366,245 @@
         // Initialize with default preset
         loadPreset('exact');
 
-        const delay = ms => new Promise(res => setTimeout(res, ms));
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-        // Form Submission & Visual Pipeline Simulation
-        document.getElementById('reconcileForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Helper function to reset a specific stage indicator
+        function resetStep(stepNum) {
+            const stepEl = document.getElementById(`step-${stepNum}`);
+            if (!stepEl) return;
             
-            const runBtn = document.getElementById('runBtn');
-            const resultsPanel = document.getElementById('results-panel');
-            const statusBadge = document.getElementById('pipeline-status');
+            stepEl.className = "p-3.5 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between transition-all duration-300";
 
-            runBtn.disabled = true;
-            runBtn.classList.add('opacity-50');
-            resultsPanel.classList.add('hidden');
-            
-            statusBadge.className = "text-xs font-mono px-2.5 py-1 rounded bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan flex items-center gap-1.5";
-            statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-ping"></span> Running Pipeline...`;
+            const icon = stepEl.querySelector('.step-icon');
+            const label = stepEl.querySelector('.step-label');
+            const badge = stepEl.querySelector('.step-status');
 
-            // Reset Steps
-            resetStep(1);
-            resetStep(2);
-            resetStep(3);
-
-            // Payload Construction
-            const payload = {
-                bank_record: {
-                    id: "BNK-" + Date.now(),
-                    description: document.getElementById('bank_desc').value,
-                    amount: parseFloat(document.getElementById('bank_amount').value),
-                    date: document.getElementById('bank_date').value,
-                    reference: document.getElementById('bank_ref').value
-                },
-                ledger_record: {
-                    id: "LDG-" + Date.now(),
-                    description: document.getElementById('ledger_desc').value,
-                    amount: parseFloat(document.getElementById('ledger_amount').value),
-                    date: document.getElementById('ledger_date').value,
-                    reference: document.getElementById('ledger_ref').value
-                }
-            };
-
-            // Animated Step 1: Normalization (1.2s)
-            await activateStep(1, "Parsing & Normalizing...");
-            await delay(1200);
-            completeStep(1, "Normalized");
-
-            // Animated Step 2: Deterministic Rule Checks (1.4s)
-            await activateStep(2, "Verifying Deterministic Rules...");
-            await delay(1400);
-            completeStep(2, "Rules Checked");
-
-            // Animated Step 3 & API Call: ML Scoring Calculation (1.2s)
-            await activateStep(3, "Calculating Weighted Scores...");
-            await delay(1200);
-            
-            try {
-                const response = await fetch('/api/v1/reconcile/match-demo', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-                
-                completeStep(3, "Scored");
-                
-                statusBadge.className = "text-xs font-mono px-2.5 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent";
-                statusBadge.textContent = "Run Completed";
-
-                // Render Results
-                renderResults(data);
-
-            } catch (err) {
-                statusBadge.className = "text-xs font-mono px-2.5 py-1 rounded bg-brand-rose/20 border border-brand-rose/30 text-brand-rose";
-                statusBadge.textContent = "Execution Failed";
-                alert("Error connecting to API endpoint: " + err.message);
-            } finally {
-                runBtn.disabled = false;
-                runBtn.classList.remove('opacity-50');
+            if (icon) {
+                icon.className = "step-icon w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-neutral-400 font-mono text-xs";
+                icon.innerHTML = stepNum;
             }
-        });
-
-        // Pipeline Helper Functions
-        function resetStep(num) {
-            const el = document.getElementById(`step-${num}`);
-            el.className = "p-3.5 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between transition-all duration-300";
-            el.querySelector('.step-icon').className = "step-icon w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-neutral-400";
-            el.querySelector('.step-state').className = "step-state text-neutral-500";
-            el.querySelector('.step-state').textContent = "Pending";
+            if (label) label.className = "step-label font-medium text-neutral-400 text-xs font-mono";
+            if (badge) {
+                badge.className = "step-status step-state text-xs font-mono text-neutral-500 opacity-50";
+                badge.textContent = "Pending";
+            }
         }
 
-        async function activateStep(num, text) {
-            const el = document.getElementById(`step-${num}`);
-            el.className = "p-3.5 rounded-xl border border-brand-cyan/30 bg-brand-cyan/5 flex items-center justify-between transition-all duration-300";
-            el.querySelector('.step-icon').className = "step-icon w-6 h-6 rounded-full bg-brand-cyan/20 border border-brand-cyan text-brand-cyan flex items-center justify-center animate-pulse";
-            el.querySelector('.step-state').className = "step-state text-brand-cyan font-semibold";
-            el.querySelector('.step-state').textContent = text;
+        // Helper function to mark a stage as active/processing
+        async function activateStep(stepNum, statusText = "Processing...") {
+            const stepEl = document.getElementById(`step-${stepNum}`);
+            if (!stepEl) return;
+
+            stepEl.className = "p-3.5 rounded-xl border border-brand-cyan/30 bg-brand-cyan/5 flex items-center justify-between transition-all duration-300";
+
+            const icon = stepEl.querySelector('.step-icon');
+            const label = stepEl.querySelector('.step-label');
+            const badge = stepEl.querySelector('.step-status');
+
+            if (icon) icon.className = "step-icon w-6 h-6 rounded-full bg-brand-cyan/20 border border-brand-cyan text-brand-cyan flex items-center justify-center font-mono text-xs animate-pulse";
+            if (label) label.className = "step-label font-medium text-brand-cyan text-xs font-mono";
+            if (badge) {
+                badge.className = "step-status step-state text-xs font-mono text-brand-cyan animate-pulse font-semibold";
+                badge.textContent = statusText;
+            }
         }
 
-        function completeStep(num, text) {
-            const el = document.getElementById(`step-${num}`);
-            el.className = "p-3.5 rounded-xl border border-brand-accent/30 bg-brand-accent/5 flex items-center justify-between transition-all duration-300";
-            el.querySelector('.step-icon').className = "step-icon w-6 h-6 rounded-full bg-brand-accent/20 border border-brand-accent text-brand-accent flex items-center justify-center";
-            el.querySelector('.step-state').className = "step-state text-brand-accent font-semibold";
-            el.querySelector('.step-state').textContent = text;
+        // Helper function to mark a stage as completed
+        function completeStep(stepNum, statusText = "Done") {
+            const stepEl = document.getElementById(`step-${stepNum}`);
+            if (!stepEl) return;
+
+            stepEl.className = "p-3.5 rounded-xl border border-brand-accent/30 bg-brand-accent/5 flex items-center justify-between transition-all duration-300";
+
+            const icon = stepEl.querySelector('.step-icon');
+            const label = stepEl.querySelector('.step-label');
+            const badge = stepEl.querySelector('.step-status');
+
+            if (icon) {
+                icon.className = "step-icon w-6 h-6 rounded-full bg-brand-accent/20 border border-brand-accent text-brand-accent flex items-center justify-center font-mono text-xs";
+                icon.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+            }
+            if (label) label.className = "step-label font-medium text-white text-xs font-mono";
+            if (badge) {
+                badge.className = "step-status step-state text-xs font-mono text-brand-accent font-semibold";
+                badge.textContent = statusText;
+            }
         }
 
+        // Helper function to populate the DOM with API execution results
         function renderResults(data) {
             const resultsPanel = document.getElementById('results-panel');
+            if (!resultsPanel) return;
+
+            const statusVal = data.status || data.match_type || 'MANUAL_REVIEW';
             const resStatus = document.getElementById('res-status');
             const resScore = document.getElementById('res-score');
             
-            resStatus.textContent = data.status.replace(/_/g, ' ');
-            resScore.textContent = data.match_score + '%';
+            if (resStatus) resStatus.textContent = statusVal.replace(/_/g, ' ');
 
-            if (data.status === 'AUTOMATIC_MATCH') {
-                resScore.className = "text-2xl font-mono font-bold text-brand-accent";
-                resStatus.className = "text-lg font-bold text-brand-accent tracking-wide";
-            } else if (data.status === 'NEEDS_HUMAN_REVIEW') {
-                resScore.className = "text-2xl font-mono font-bold text-brand-amber";
-                resStatus.className = "text-lg font-bold text-brand-amber tracking-wide";
-            } else {
-                resScore.className = "text-2xl font-mono font-bold text-brand-rose";
-                resStatus.className = "text-lg font-bold text-brand-rose tracking-wide";
+            const confidenceValue = data.confidence_score !== undefined 
+                ? Math.round(data.confidence_score * 100) 
+                : (data.match_score !== undefined ? data.match_score : 0);
+
+            if (resScore) resScore.textContent = `${confidenceValue}%`;
+
+            if (resScore && resStatus) {
+                if (statusVal.includes('AUTOMATIC') || statusVal.includes('EXACT') || statusVal === 'exact') {
+                    resScore.className = "text-2xl font-mono font-bold text-brand-accent";
+                    resStatus.className = "text-lg font-bold text-brand-accent tracking-wide";
+                } else if (statusVal.includes('HUMAN') || statusVal.includes('NEEDS') || statusVal.includes('FUZZY') || statusVal === 'fuzzy') {
+                    resScore.className = "text-2xl font-mono font-bold text-brand-amber";
+                    resStatus.className = "text-lg font-bold text-brand-amber tracking-wide";
+                } else {
+                    resScore.className = "text-2xl font-mono font-bold text-brand-rose";
+                    resStatus.className = "text-lg font-bold text-brand-rose tracking-wide";
+                }
             }
 
-            document.getElementById('res-amount-diff').textContent = `$${data.amount_diff.toFixed(2)}`;
-            document.getElementById('res-days-diff').textContent = `${data.days_diff} Day(s)`;
-            document.getElementById('res-text-sim').textContent = `${data.text_similarity}%`;
-            document.getElementById('res-explanation').textContent = data.explanation;
-            
-            document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+            const amountDiffEl = document.getElementById('res-amount-diff');
+            if (amountDiffEl) {
+                const diffVal = data.amount_diff !== undefined 
+                    ? data.amount_diff 
+                    : (data.breakdown && data.breakdown.amount !== undefined ? Math.abs(1 - data.breakdown.amount) : 0);
+                amountDiffEl.textContent = `$${Number(diffVal).toFixed(2)}`;
+            }
+
+            const daysDiffEl = document.getElementById('res-days-diff');
+            if (daysDiffEl) {
+                const daysVal = data.days_diff !== undefined ? data.days_diff : 0;
+                daysDiffEl.textContent = `${daysVal} Day(s)`;
+            }
+
+            const textSimEl = document.getElementById('res-text-sim');
+            if (textSimEl) {
+                const simVal = data.text_similarity !== undefined 
+                    ? data.text_similarity 
+                    : (data.breakdown && data.breakdown.description !== undefined ? Math.round(data.breakdown.description * 100) : 0);
+                textSimEl.textContent = `${simVal}%`;
+            }
+
+            const explanationEl = document.getElementById('res-explanation');
+            if (explanationEl) {
+                explanationEl.textContent = data.explanation || data.reason || "Reconciliation pipeline run finished successfully.";
+            }
+
+            const rawJsonEl = document.getElementById('raw-json');
+            if (rawJsonEl) {
+                rawJsonEl.textContent = JSON.stringify(data, null, 2);
+            }
 
             resultsPanel.classList.remove('hidden');
+            resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        // Attach Form Submit Listener
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('reconcileForm');
+            if (!form) return;
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const runBtn = document.getElementById('runBtn');
+                const resultsPanel = document.getElementById('results-panel');
+                const statusBadge = document.getElementById('pipeline-status');
+
+                runBtn.disabled = true;
+                runBtn.classList.add('opacity-50');
+                if (resultsPanel) resultsPanel.classList.add('hidden');
+
+                if (statusBadge) {
+                    statusBadge.className = "text-xs font-mono px-2.5 py-1 rounded bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan flex items-center gap-1.5";
+                    statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-ping"></span> Running Pipeline...`;
+                }
+
+                // Smooth scroll to steps container on mobile / smaller screens
+                const stepsContainer = document.getElementById('steps-container');
+                if (stepsContainer) {
+                    stepsContainer.closest('.glass-panel')?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+
+                // Reset Pipeline Stage Badges
+                resetStep(1);
+                resetStep(2);
+                resetStep(3);
+
+                // Construct Request Payload from Input Fields
+                const payload = {
+                    bank_record: {
+                        id: "BNK-" + Date.now(),
+                        description: document.getElementById('bank_desc')?.value || "",
+                        amount: parseFloat(document.getElementById('bank_amount')?.value || 0),
+                        date: document.getElementById('bank_date')?.value || "",
+                        reference: document.getElementById('bank_ref')?.value || ""
+                    },
+                    ledger_record: {
+                        id: "LDG-" + Date.now(),
+                        description: document.getElementById('ledger_desc')?.value || "",
+                        amount: parseFloat(document.getElementById('ledger_amount')?.value || 0),
+                        date: document.getElementById('ledger_date')?.value || "",
+                        reference: document.getElementById('ledger_ref')?.value || ""
+                    }
+                };
+
+                // Animated Step 1: Data Normalization
+                await activateStep(1, "Parsing & Normalizing...");
+                await delay(1200);
+                completeStep(1, "Normalized");
+
+                // Animated Step 2: Deterministic Rule Validation
+                await activateStep(2, "Verifying Deterministic Rules...");
+                await delay(1400);
+                completeStep(2, "Rules Checked");
+
+                // Animated Step 3 & API Fetch Execution
+                await activateStep(3, "Calculating Weighted Scores...");
+                await delay(1200);
+
+                try {
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+                    const response = await fetch('/api/v1/reconcile/match-demo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server returned HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    completeStep(3, "Scored");
+
+                    if (statusBadge) {
+                        statusBadge.className = "text-xs font-mono px-2.5 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent";
+                        statusBadge.textContent = "Run Completed";
+                    }
+
+                    renderResults(data);
+
+                } catch (err) {
+                    if (statusBadge) {
+                        statusBadge.className = "text-xs font-mono px-2.5 py-1 rounded bg-brand-rose/20 border border-brand-rose/30 text-brand-rose";
+                        statusBadge.textContent = "Execution Failed";
+                    }
+                    alert("Error executing reconciliation pipeline: " + err.message);
+                } finally {
+                    runBtn.disabled = false;
+                    runBtn.classList.remove('opacity-50');
+                }
+            });
+        });
     </script>
 </body>
 </html>
