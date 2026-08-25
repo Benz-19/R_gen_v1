@@ -140,7 +140,7 @@
             <!-- Bottom Redirect Link -->
             <div class="mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-white/10 text-center text-xs text-neutral-400">
                 Don't have an account? 
-                <a href="#" class="text-white hover:text-brand-cyan font-semibold transition ml-1 inline-block">Create one &rarr;</a>
+                <a href="/register" class="text-white hover:text-brand-cyan font-semibold transition ml-1 inline-block">Create one &rarr;</a>
             </div>
 
         </div>
