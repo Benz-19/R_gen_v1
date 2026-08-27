@@ -101,8 +101,12 @@
             </div>
 
             <!-- Login Form -->
-            <form action="#" method="POST" class="space-y-4 sm:space-y-5">
-                
+            <form action="/process-login" method="POST" class="space-y-4 sm:space-y-5">
+                @if(Session::has('fail'))
+                    <div style="background-color: red; color:white; text-align:center; border-radius: 9px round;">{{Session::get('fail')}}</div>
+                @endif
+                @csrf
+
                 <!-- Email Field -->
                 <div>
                     <label for="email" class="block text-xs font-mono text-neutral-400 mb-1.5">Email Address</label>

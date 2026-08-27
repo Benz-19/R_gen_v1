@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers\Auth;
-use App\Services\Auth\AuthService;
-use Illuminate\Support\Facades\Request;
+use App\Services\Auth\LoginService;
+use Illuminate\Http\Request;
 
 class LoginAuthController extends AuthController{
 
@@ -12,13 +12,20 @@ class LoginAuthController extends AuthController{
     public function login(Request $request){
 
         $request->validate([
-            'email' => 'required | unique:users',
+            'email' => 'required|email',
             'password' => 'required'
         ]);
 
-        $auth_service = new AuthService();
+        $auth_service = new LoginService();
         $res = $auth_service->login($request);
 
-        return $res['status'] === true ? view('/dashboard') : back()->with('error', $res['message']);
+        if($res && ($res['user_id'] && $res['user_type'])){
+            $request->session()->put('user_id', $res['user_id']);
+            $request->session()->put('user_type', $res['user_type']);
+
+            return redirect()->intended('/dashboard');
+        }
+
+        return back()->with('fail', $res['message']);
     }
 }

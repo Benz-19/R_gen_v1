@@ -7,4 +7,6 @@ class RegisterAuthController extends AuthController{
     public function registerPage(){
         return view('/auth/register');
     }
+
+    
 }

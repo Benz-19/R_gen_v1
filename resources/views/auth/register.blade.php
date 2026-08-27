@@ -91,6 +91,10 @@
             border-width: 0 !important;
             pointer-events: none;
         }
+
+        .box-hidden{
+            display: none !important;
+        }
     </style>
 </head>
 <body class="min-h-full flex flex-col justify-between bg-grid antialiased">
@@ -225,7 +229,7 @@
                                 <input type="text" id="verificationCode" maxlength="4" class="w-28 px-3 py-1.5 bg-black border border-slate-800 rounded text-center tracking-widest text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="0000">
                                 <button type="button" onclick="verifyCode()" class="px-3.5 py-1.5 bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/30 active:scale-95 font-medium text-xs rounded transition-all duration-200">Verify</button>
                             </div>
-                            <p class="text-[10px] text-slate-500">Test Override: Enter <code class="text-emerald-400">0000</code> to pass validation.</p>
+                            <p class="text-[10px] text-slate-500">Enter the code sent to your <span class="text-emerald-400">email</span> to pass verification.</p>
                         </div>
 
                         <div>
@@ -265,7 +269,7 @@
                     <!-- Individual Flow -->
                     <div id="individual-workspace-flow" class="smooth-box box-hidden space-y-3 pt-1">
                         <div>
-                            <label class="block text-xs text-slate-400 mb-1">Workspace Label</label>
+                            <label class="block text-xs text-slate-400 mb-1">Workspace Label / Name</label>
                             <input type="text" id="indWorkspaceName" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Personal Workspace" oninput="registrationState.companyName = this.value; hideAlert();">
                         </div>
                         <div>
@@ -299,9 +303,25 @@
                             </select>
                         </div>
 
-                        <div id="workspace-code-box" class="smooth-box box-hidden">
-                            <label class="block text-xs text-slate-400 mb-1">Enter Workspace Join Code</label>
-                            <input type="text" id="workspaceCode" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200 tracking-wider" placeholder="e.g. ACME-89X2" oninput="registrationState.workspaceCode = this.value; hideAlert();">
+                        <!-- Workspace Code Container -->
+                        <div id="workspace-code-box" class="box-hidden space-y-2 mt-4">
+                            <label for="workspaceCodeInput" class="block text-xs font-medium text-slate-300">Workspace Join Code</label>
+                            <div class="flex space-x-2">
+                                <input 
+                                    type="text" 
+                                    id="workspaceCodeInput" 
+                                    class="flex-1 bg-slate-900 border border-slate-800 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" 
+                                    placeholder="Enter join code provided by your admin"
+                                    oninput="registrationState.workspaceCode = this.value; registrationState.isWorkspaceCodeVerified = false;"
+                                />
+                                <button 
+                                    type="button" 
+                                    onclick="verifyCompanyJoinCode()" 
+                                    class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-lg text-xs transition-colors shrink-0"
+                                >
+                                    Verify Code
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -424,314 +444,503 @@
         </div>
     </footer>
 
-    <script>
-        const registrationState = {
-            accountType: "organization",
-            fullName: "",
-            email: "",
-            isEmailVerified: false,
-            password: "",
-            isPasswordValid: false,
-            companyName: "",
-            isCompanyVerified: false,
-            companyStatus: null,
-            workspaceCode: "",
-            selectedRole: "",
-            primaryDataSource: ""
+<script>
+    const registrationState = {
+        accountType: "organization",
+        fullName: "",
+        email: "",
+        isEmailVerified: false,
+        verificationCode: "",
+        password: "",
+        isPasswordValid: false,
+        companyName: "",
+        isCompanyVerified: false,
+        companyStatus: null,
+        workspaceCode: "",
+        isWorkspaceCodeVerified: false,
+        selectedRole: "",
+        primaryDataSource: ""
+    };
+
+    let currentStep = 1;
+    let isAnimating = false;
+
+    function showAlert(msg) {
+        const alertBox = document.getElementById('inline-alert');
+        const alertText = document.getElementById('inline-alert-text');
+        if (alertText) alertText.innerText = msg;
+        if (alertBox) alertBox.classList.remove('box-hidden');
+    }
+
+    function hideAlert() {
+        const alertBox = document.getElementById('inline-alert');
+        if (alertBox) alertBox.classList.add('box-hidden');
+    }
+
+    function handleAccountTypeChange(type) {
+        hideAlert();
+        registrationState.accountType = type;
+        const orgBox = document.getElementById('org-workspace-flow');
+        const indBox = document.getElementById('individual-workspace-flow');
+
+        if (type === 'individual') {
+            if (orgBox) orgBox.classList.add('box-hidden');
+            if (indBox) indBox.classList.remove('box-hidden');
+        } else {
+            if (orgBox) orgBox.classList.remove('box-hidden');
+            if (indBox) indBox.classList.add('box-hidden');
+        }
+    }
+
+    function handleCompanyNameInput(val) {
+        hideAlert();
+        registrationState.companyName = val;
+        registrationState.isCompanyVerified = false;
+        registrationState.companyStatus = null;
+        registrationState.workspaceCode = "";
+        registrationState.isWorkspaceCodeVerified = false;
+
+        // Ensure sub-boxes are hidden whenever company name input changes
+        const statusBox = document.getElementById('org-status-box');
+        const roleBox = document.getElementById('role-selection-box');
+        const codeBox = document.getElementById('workspace-code-box');
+
+        if (statusBox) statusBox.classList.add('box-hidden');
+        if (roleBox) roleBox.classList.add('box-hidden');
+        if (codeBox) codeBox.classList.add('box-hidden');
+    }
+
+    function validatePassword(val) {
+        hideAlert();
+        registrationState.password = val;
+
+        const rules = {
+            length: val.length >= 8,
+            letter: /[a-zA-Z]/.test(val),
+            number: /[0-9]/.test(val),
+            special: /[^a-zA-Z0-9]/.test(val)
         };
 
-        let currentStep = 1;
-        let isAnimating = false;
+        updateRuleUI('rule-length', rules.length);
+        updateRuleUI('rule-letter', rules.letter);
+        updateRuleUI('rule-number', rules.number);
+        updateRuleUI('rule-special', rules.special);
 
-        function showAlert(msg) {
-            const alertBox = document.getElementById('inline-alert');
-            const alertText = document.getElementById('inline-alert-text');
-            alertText.innerText = msg;
-            alertBox.classList.remove('box-hidden');
+        registrationState.isPasswordValid = rules.length && rules.letter && rules.number && rules.special;
+    }
+
+    function updateRuleUI(id, isPassed) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const icon = el.querySelector('.rule-icon');
+        if (isPassed) {
+            el.className = "flex items-center space-x-1.5 text-emerald-400 font-medium transition-colors duration-200";
+            if (icon) icon.innerText = "✓";
+        } else {
+            el.className = "flex items-center space-x-1.5 text-slate-500 transition-colors duration-200";
+            if (icon) icon.innerText = "✕";
+        }
+    }
+
+    async function sendVerificationCode() {
+        hideAlert();
+        if(!registrationState.email.trim()) {
+            showAlert("Please provide a valid work email address first.");
+            return;
         }
 
-        function hideAlert() {
-            document.getElementById('inline-alert').classList.add('box-hidden');
-        }
+        try {
+            const response = await fetch('/api/v1/send-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({ email: registrationState.email })
+            });
 
-        function handleAccountTypeChange(type) {
-            hideAlert();
-            registrationState.accountType = type;
-            const orgBox = document.getElementById('org-workspace-flow');
-            const indBox = document.getElementById('individual-workspace-flow');
+            const data = await response.json();
 
-            if (type === 'individual') {
-                orgBox.classList.add('box-hidden');
-                indBox.classList.remove('box-hidden');
-            } else {
-                orgBox.classList.remove('box-hidden');
-                indBox.classList.add('box-hidden');
-            }
-        }
-
-        function validatePassword(val) {
-            hideAlert();
-            registrationState.password = val;
-
-            const rules = {
-                length: val.length >= 8,
-                letter: /[a-zA-Z]/.test(val),
-                number: /[0-9]/.test(val),
-                special: /[^a-zA-Z0-9]/.test(val)
-            };
-
-            updateRuleUI('rule-length', rules.length);
-            updateRuleUI('rule-letter', rules.letter);
-            updateRuleUI('rule-number', rules.number);
-            updateRuleUI('rule-special', rules.special);
-
-            registrationState.isPasswordValid = rules.length && rules.letter && rules.number && rules.special;
-        }
-
-        function updateRuleUI(id, isPassed) {
-            const el = document.getElementById(id);
-            const icon = el.querySelector('.rule-icon');
-            if (isPassed) {
-                el.className = "flex items-center space-x-1.5 text-emerald-400 font-medium transition-colors duration-200";
-                icon.innerText = "✓";
-            } else {
-                el.className = "flex items-center space-x-1.5 text-slate-500 transition-colors duration-200";
-                icon.innerText = "✕";
-            }
-        }
-
-        function sendVerificationCode() {
-            hideAlert();
-            if(!registrationState.email.trim()) {
-                showAlert("Please provide a valid work email address first.");
-                return;
-            }
-            document.getElementById('code-drawer').classList.remove('box-hidden');
-        }
-
-        function verifyCode() {
-            hideAlert();
-            const codeInput = document.getElementById('verificationCode').value.trim();
-            if(codeInput === '0000') {
-                registrationState.isEmailVerified = true;
-                document.getElementById('code-drawer').classList.add('box-hidden');
-            } else {
-                showAlert("Invalid verification code. Enter '0000' for testing.");
-            }
-        }
-
-        function checkCompanyDatabase() {
-            hideAlert();
-            const name = registrationState.companyName.trim();
-            if(!name) {
-                showAlert("Please enter an organization name before verifying.");
+            if (!response.ok) {
+                showAlert(data.message || "Failed to send verification code.");
                 return;
             }
 
-            const statusBox = document.getElementById('org-status-box');
-            const roleBox = document.getElementById('role-selection-box');
-            const codeBox = document.getElementById('workspace-code-box');
+            const codeDrawer = document.getElementById('code-drawer');
+            if (codeDrawer) codeDrawer.classList.remove('box-hidden');
+        } catch (error) {
+            showAlert("An error occurred while sending the code. Please try again.");
+        }
+    }
+
+    async function verifyCode() {
+        hideAlert();
+        const codeInputElement = document.getElementById('verificationCode');
+        const codeInput = codeInputElement ? codeInputElement.value.trim() : '';
+        
+        if (!codeInput) {
+            showAlert("Please enter the verification code.");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/v1/verify-registration-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    email: registrationState.email,
+                    code: codeInput
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.valid) {
+                registrationState.isEmailVerified = false;
+                showAlert(data.message || "Invalid verification code.");
+                return;
+            }
+
+            registrationState.verificationCode = codeInput;
+            registrationState.isEmailVerified = true;
+            const codeDrawer = document.getElementById('code-drawer');
+            if (codeDrawer) codeDrawer.classList.add('box-hidden');
+            showAlert("Email verified successfully!");
+        } catch (error) {
+            showAlert("An error occurred while validating the verification code.");
+        }
+    }
+
+    async function checkCompanyDatabase() {
+        hideAlert();
+        const name = registrationState.companyName.trim();
+        if(!name) {
+            showAlert("Please enter an organization name before verifying.");
+            return;
+        }
+
+        const statusBox = document.getElementById('org-status-box');
+        const roleBox = document.getElementById('role-selection-box');
+        const codeBox = document.getElementById('workspace-code-box');
+
+        try {
+            const response = await fetch('/api/v1/check-company', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({ companyName: name })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                showAlert(data.message || "Failed to check organization.");
+                return;
+            }
 
             registrationState.isCompanyVerified = true;
+            registrationState.isWorkspaceCodeVerified = false;
+            registrationState.workspaceCode = "";
 
-            if(name.toLowerCase().includes('acme')) {
+            if (data.exists) {
                 registrationState.companyStatus = 'existing';
-                statusBox.className = "smooth-box p-3 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 rounded-lg text-xs leading-relaxed";
-                statusBox.innerHTML = `<strong class="font-sans block text-emerald-200">Organization Verified</strong> Workspace exists. Provide your Join Code below to proceed.`;
-                statusBox.classList.remove('box-hidden');
-                roleBox.classList.add('box-hidden');
-                codeBox.classList.remove('box-hidden');
+                if (statusBox) {
+                    statusBox.className = "smooth-box p-3 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 rounded-lg text-xs leading-relaxed";
+                    statusBox.innerHTML = `<strong class="font-sans block text-emerald-200">Organization Verified</strong> Workspace exists. Provide your Join Code below to proceed.`;
+                    statusBox.classList.remove('box-hidden');
+                }
+                
+                if (roleBox) roleBox.classList.add('box-hidden');
+                if (codeBox) codeBox.classList.remove('box-hidden');
             } else {
                 registrationState.companyStatus = 'new';
-                statusBox.className = "smooth-box p-3 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 rounded-lg text-xs leading-relaxed";
-                statusBox.innerHTML = `<strong class="font-sans block text-emerald-200">New Organization Verified</strong> You will be designated as the primary Organization Administrator.`;
-                statusBox.classList.remove('box-hidden');
-                roleBox.classList.remove('box-hidden');
-                codeBox.classList.add('box-hidden');
+                if (statusBox) {
+                    statusBox.className = "smooth-box p-3 bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 rounded-lg text-xs leading-relaxed";
+                    statusBox.innerHTML = `<strong class="font-sans block text-emerald-200">New Organization Verified</strong> You will be designated as the primary Organization Administrator.`;
+                    statusBox.classList.remove('box-hidden');
+                }
+                
+                if (roleBox) roleBox.classList.remove('box-hidden');
+                if (codeBox) codeBox.classList.add('box-hidden');
             }
+        } catch (error) {
+            showAlert("An error occurred while verifying the company name.");
+        }
+    }
+
+    async function verifyCompanyJoinCode() {
+        hideAlert();
+        const codeInputElement = document.getElementById('workspaceCodeInput');
+        const joinCodeInput = codeInputElement ? codeInputElement.value.trim() : registrationState.workspaceCode.trim();
+
+        if (!joinCodeInput) {
+            showAlert("Please enter a workspace join code.");
+            return;
         }
 
-        function transitionStep(fromStep, toStep) {
-            if (isAnimating || fromStep === toStep) return;
-            isAnimating = true;
+        try {
+            const response = await fetch('/api/v1/verify-company-join-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify({
+                    companyName: registrationState.companyName,
+                    joinCode: joinCodeInput
+                })
+            });
 
-            const currentEl = typeof fromStep === 'string' ? document.getElementById(fromStep) : document.getElementById(`step-${fromStep}`);
-            const nextEl = typeof toStep === 'string' ? document.getElementById(toStep) : document.getElementById(`step-${toStep}`);
+            const data = await response.json();
 
-            if (!currentEl || !nextEl) {
-                isAnimating = false;
+            if (!response.ok || !data.valid) {
+                registrationState.isWorkspaceCodeVerified = false;
+                showAlert(data.message || "Invalid join code. Please contact your organization administrator.");
                 return;
             }
 
-            currentEl.className = `step-panel step-exit`;
-            nextEl.className = `step-panel step-enter`;
+            registrationState.workspaceCode = joinCodeInput;
+            registrationState.isWorkspaceCodeVerified = true;
+            showAlert("Company link has been established successfully!");
+        } catch (error) {
+            showAlert("An error occurred while verifying the join code.");
+        }
+    }
 
-            setTimeout(() => {
-                if (typeof toStep === 'number') {
-                    currentStep = toStep;
-                }
-                nextEl.className = `step-panel step-active`;
-                updateUI();
-                isAnimating = false;
-            }, 300);
+    function transitionStep(fromStep, toStep) {
+        if (isAnimating || fromStep === toStep) return;
+        isAnimating = true;
+
+        const currentEl = typeof fromStep === 'string' ? document.getElementById(fromStep) : document.getElementById(`step-${fromStep}`);
+        const nextEl = typeof toStep === 'string' ? document.getElementById(toStep) : document.getElementById(`step-${toStep}`);
+
+        if (!currentEl || !nextEl) {
+            isAnimating = false;
+            return;
         }
 
-        function goToStep(targetStep) {
-            hideAlert();
-            transitionStep(currentStep, targetStep);
-        }
+        currentEl.className = `step-panel step-exit`;
+        nextEl.className = `step-panel step-enter`;
 
-        function nextStep() {
-            hideAlert();
-
-            if (currentStep === 2) {
-                if (!registrationState.fullName.trim()) {
-                    showAlert("Full Name is required.");
-                    return;
-                }
-                if (!registrationState.email.trim()) {
-                    showAlert("Work Email Address is required.");
-                    return;
-                }
-                if (!registrationState.isEmailVerified) {
-                    showAlert("Please verify your email address before proceeding.");
-                    return;
-                }
-                if (!registrationState.isPasswordValid) {
-                    showAlert("Password must be at least 8 characters and contain letters, numbers, and at least 1 special character.");
-                    return;
-                }
+        setTimeout(() => {
+            if (typeof toStep === 'number') {
+                currentStep = toStep;
             }
+            nextEl.className = `step-panel step-active`;
+            updateUI();
+            isAnimating = false;
+        }, 300);
+    }
 
-            if (currentStep === 3) {
-                if (registrationState.accountType === 'organization') {
-                    if (!registrationState.companyName.trim()) {
-                        showAlert("Please enter your company/organization name.");
-                        return;
-                    }
-                    if (!registrationState.isCompanyVerified) {
-                        showAlert("You must click 'Verify Name' to check if your organization already exists.");
-                        return;
-                    }
-                    if (registrationState.companyStatus === 'existing' && !registrationState.workspaceCode.trim()) {
+    function goToStep(targetStep) {
+        hideAlert();
+        transitionStep(currentStep, targetStep);
+    }
+
+    function nextStep() {
+        hideAlert();
+
+        if (currentStep === 2) {
+            if (!registrationState.fullName.trim()) {
+                showAlert("Full Name is required.");
+                return;
+            }
+            if (!registrationState.email.trim()) {
+                showAlert("Work Email Address is required.");
+                return;
+            }
+            if (!registrationState.isEmailVerified) {
+                showAlert("Please verify your email address before proceeding.");
+                return;
+            }
+            if (!registrationState.isPasswordValid) {
+                showAlert("Password must be at least 8 characters and contain letters, numbers, and at least 1 special character.");
+                return;
+            }
+        }
+
+        if (currentStep === 3) {
+            if (registrationState.accountType === 'organization') {
+                if (!registrationState.companyName.trim()) {
+                    showAlert("Please enter your company/organization name.");
+                    return;
+                }
+                if (!registrationState.isCompanyVerified) {
+                    showAlert("You must click 'Verify Name' to check if your organization already exists.");
+                    return;
+                }
+                
+                if (registrationState.companyStatus === 'existing') {
+                    const codeInputElement = document.getElementById('workspaceCodeInput');
+                    const inputCode = codeInputElement ? codeInputElement.value.trim() : registrationState.workspaceCode.trim();
+
+                    if (!inputCode) {
                         showAlert("Workspace Join Code is required for joining an existing company.");
                         return;
                     }
-                    if (registrationState.companyStatus === 'new' && !registrationState.selectedRole) {
-                        showAlert("Please select an administrative role.");
-                        return;
-                    }
-                } else {
-                    if (!registrationState.primaryDataSource) {
-                        showAlert("Please select a primary data source.");
+
+                    if (!registrationState.isWorkspaceCodeVerified) {
+                        showAlert("Please verify your join code before proceeding.");
                         return;
                     }
                 }
-            }
 
-            if (currentStep === 4) {
-                startOnboardingPipeline();
-                return;
-            }
-
-            if (currentStep < 4) {
-                const currentCircle = document.getElementById(`circle-${currentStep}`);
-                currentCircle.classList.add('circle-running');
-
-                setTimeout(() => {
-                    currentCircle.classList.remove('circle-running');
-                    transitionStep(currentStep, currentStep + 1);
-                }, 300);
-            }
-        }
-
-        function previousStep() {
-            hideAlert();
-            if (currentStep > 1) {
-                transitionStep(currentStep, currentStep - 1);
-            }
-        }
-
-        function updateUI() {
-            for(let i = 1; i <= 4; i++) {
-                const circle = document.getElementById(`circle-${i}`);
-                if (circle) {
-                    if (i < currentStep) {
-                        circle.className = "w-8 h-8 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-xs transition-all duration-500 scale-100";
-                        circle.innerHTML = "✓";
-                    } else if (i === currentStep) {
-                        circle.className = "w-8 h-8 rounded-full border border-emerald-500 bg-emerald-950/40 text-emerald-400 font-bold flex items-center justify-center text-xs shadow-lg shadow-emerald-500/20 transition-all duration-500 scale-105";
-                        circle.innerHTML = i;
-                    } else {
-                        circle.className = "w-8 h-8 rounded-full border border-slate-800 bg-slate-950 text-slate-500 font-bold flex items-center justify-center text-xs transition-all duration-500 scale-100";
-                        circle.innerHTML = i;
-                    }
+                if (registrationState.companyStatus === 'new' && !registrationState.selectedRole) {
+                    showAlert("Please select an administrative role.");
+                    return;
                 }
-            }
-
-            for(let i = 1; i <= 3; i++) {
-                const line = document.getElementById(`line-${i}`);
-                if (line) {
-                    if (i < currentStep) {
-                        line.className = "h-[1px] flex-1 bg-emerald-500 mx-2 transition-all duration-500";
-                    } else {
-                        line.className = "h-[1px] flex-1 bg-slate-800 mx-2 transition-all duration-500";
-                    }
-                }
-            }
-
-            const btnBack = document.getElementById('btn-back');
-            const btnNext = document.getElementById('btn-next');
-            if (btnBack) btnBack.disabled = (currentStep === 1);
-            
-            if (btnNext) {
-                if (currentStep === 4) {
-                    populateSummary();
-                    btnNext.innerHTML = "Register &rarr;";
-                    btnNext.disabled = !document.getElementById('termsAgreed').checked;
-                } else {
-                    btnNext.innerHTML = "Next &rarr;";
-                    btnNext.disabled = false;
-                }
-            }
-        }
-
-        function toggleRegisterButton(checked) {
-            if(currentStep === 4) {
-                document.getElementById('btn-next').disabled = !checked;
-            }
-        }
-
-        function populateSummary() {
-            document.getElementById('summary-type').innerText = registrationState.accountType;
-            document.getElementById('summary-user').innerText = `${registrationState.fullName || 'N/A'} (${registrationState.email || 'N/A'})`;
-            
-            if(registrationState.accountType === 'organization') {
-                document.getElementById('summary-workspace').innerText = `${registrationState.companyName || 'N/A'} [${registrationState.companyStatus === 'existing' ? 'Joining via Code' : 'New Org Admin'}]`;
             } else {
-                document.getElementById('summary-workspace').innerText = `${registrationState.companyName || 'Personal Workspace'} (${registrationState.primaryDataSource || 'CSV Uploads'})`;
+                if (!registrationState.primaryDataSource) {
+                    showAlert("Please select a primary data source.");
+                    return;
+                }
             }
         }
 
-        function startOnboardingPipeline() {
-            transitionStep(4, 5);
+        if (currentStep === 4) {
+            startOnboardingPipeline();
+            return;
+        }
+
+        if (currentStep < 4) {
+            const currentCircle = document.getElementById(`circle-${currentStep}`);
+            if (currentCircle) currentCircle.classList.add('circle-running');
 
             setTimeout(() => {
-                document.getElementById('nav-buttons').classList.add('opacity-0', 'pointer-events-none');
-                document.getElementById('stepper-nav').classList.add('opacity-0', 'pointer-events-none');
+                if (currentCircle) currentCircle.classList.remove('circle-running');
+                transitionStep(currentStep, currentStep + 1);
             }, 300);
+        }
+    }
+
+    function previousStep() {
+        hideAlert();
+        if (currentStep > 1) {
+            transitionStep(currentStep, currentStep - 1);
+        }
+    }
+
+    function updateUI() {
+        for(let i = 1; i <= 4; i++) {
+            const circle = document.getElementById(`circle-${i}`);
+            if (circle) {
+                if (i < currentStep) {
+                    circle.className = "w-8 h-8 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-xs transition-all duration-500 scale-100";
+                    circle.innerHTML = "✓";
+                } else if (i === currentStep) {
+                    circle.className = "w-8 h-8 rounded-full border border-emerald-500 bg-emerald-950/40 text-emerald-400 font-bold flex items-center justify-center text-xs shadow-lg shadow-emerald-500/20 transition-all duration-500 scale-105";
+                    circle.innerHTML = i;
+                } else {
+                    circle.className = "w-8 h-8 rounded-full border border-slate-800 bg-slate-950 text-slate-500 font-bold flex items-center justify-center text-xs transition-all duration-500 scale-100";
+                    circle.innerHTML = i;
+                }
+            }
+        }
+
+        for(let i = 1; i <= 3; i++) {
+            const line = document.getElementById(`line-${i}`);
+            if (line) {
+                if (i < currentStep) {
+                    line.className = "h-[1px] flex-1 bg-emerald-500 mx-2 transition-all duration-500";
+                } else {
+                    line.className = "h-[1px] flex-1 bg-slate-800 mx-2 transition-all duration-500";
+                }
+            }
+        }
+
+        const btnBack = document.getElementById('btn-back');
+        const btnNext = document.getElementById('btn-next');
+        if (btnBack) btnBack.disabled = (currentStep === 1);
+        
+        if (btnNext) {
+            if (currentStep === 4) {
+                populateSummary();
+                btnNext.innerHTML = "Register &rarr;";
+                const termsCheck = document.getElementById('termsAgreed');
+                btnNext.disabled = termsCheck ? !termsCheck.checked : true;
+            } else {
+                btnNext.innerHTML = "Next &rarr;";
+                btnNext.disabled = false;
+            }
+        }
+    }
+
+    function toggleRegisterButton(checked) {
+        if(currentStep === 4) {
+            const btnNext = document.getElementById('btn-next');
+            if (btnNext) btnNext.disabled = !checked;
+        }
+    }
+
+    function populateSummary() {
+        const typeEl = document.getElementById('summary-type');
+        const userEl = document.getElementById('summary-user');
+        const wsEl = document.getElementById('summary-workspace');
+
+        if (typeEl) typeEl.innerText = registrationState.accountType;
+        if (userEl) userEl.innerText = `${registrationState.fullName || 'N/A'} (${registrationState.email || 'N/A'})`;
+        
+        if (wsEl) {
+            if(registrationState.accountType === 'organization') {
+                wsEl.innerText = `${registrationState.companyName || 'N/A'} [${registrationState.companyStatus === 'existing' ? 'Joining via Code' : 'New Org Admin'}]`;
+            } else {
+                wsEl.innerText = `${registrationState.companyName || 'Personal Workspace'} (${registrationState.primaryDataSource || 'CSV Uploads'})`;
+            }
+        }
+    }
+
+    async function startOnboardingPipeline() {
+        transitionStep(4, 5);
+
+        setTimeout(() => {
+            const navBtns = document.getElementById('nav-buttons');
+            const stepNav = document.getElementById('stepper-nav');
+            if (navBtns) navBtns.classList.add('opacity-0', 'pointer-events-none');
+            if (stepNav) stepNav.classList.add('opacity-0', 'pointer-events-none');
+        }, 300);
+
+        try {
+            const response = await fetch('/api/v1/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                },
+                body: JSON.stringify(registrationState)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                transitionStep(5, 4);
+                const navBtns = document.getElementById('nav-buttons');
+                const stepNav = document.getElementById('stepper-nav');
+                if (navBtns) navBtns.classList.remove('opacity-0', 'pointer-events-none');
+                if (stepNav) stepNav.classList.remove('opacity-0', 'pointer-events-none');
+                showAlert(data.message || "Registration failed. Please review your details.");
+                return;
+            }
 
             let phaseIndex = 0;
 
             function runPhase() {
                 if (phaseIndex < 4) {
                     const phaseEl = document.getElementById(`phase-${phaseIndex}`);
-                    phaseEl.classList.remove('opacity-40');
-                    phaseEl.classList.add('border-emerald-500/50', 'bg-emerald-950/20');
-                    
-                    const iconBox = phaseEl.querySelector('.status-icon');
-                    iconBox.className = "status-icon w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] transition-all duration-500 scale-110 shrink-0";
-                    iconBox.innerHTML = "✓";
+                    if (phaseEl) {
+                        phaseEl.classList.remove('opacity-40');
+                        phaseEl.classList.add('border-emerald-500/50', 'bg-emerald-950/20');
+                        
+                        const iconBox = phaseEl.querySelector('.status-icon');
+                        if (iconBox) {
+                            iconBox.className = "status-icon w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] transition-all duration-500 scale-110 shrink-0";
+                            iconBox.innerHTML = "✓";
+                        }
+                    }
 
                     phaseIndex++;
                     setTimeout(runPhase, 1200);
@@ -746,7 +955,16 @@
             }
 
             setTimeout(runPhase, 600);
+
+        } catch (error) {
+            transitionStep(5, 4);
+            const navBtns = document.getElementById('nav-buttons');
+            const stepNav = document.getElementById('stepper-nav');
+            if (navBtns) navBtns.classList.remove('opacity-0', 'pointer-events-none');
+            if (stepNav) stepNav.classList.remove('opacity-0', 'pointer-events-none');
+            showAlert("An unexpected error occurred during registration. Please try again.");
         }
-    </script>
+    }
+</script>
 </body>
 </html>
