@@ -103,7 +103,7 @@
             <!-- Login Form -->
             <form action="/process-login" method="POST" class="space-y-4 sm:space-y-5">
                 @if(Session::has('fail'))
-                    <div style="background-color: red; color:white; text-align:center; border-radius: 9px round;">{{Session::get('fail')}}</div>
+                    <div id="flash-message" class="bg-red-500/10 border border-red-500/50 text-red-400 text-sm rounded-lg p-3 text-center transition-opacity duration-500 ease-out">{{Session::get('fail')}}</div>
                 @endif
                 @csrf
 
@@ -168,6 +168,13 @@
 
     <script>
         lucide.createIcons();
+        setTimeout(() => {
+                const alert = document.getElementById('flash-message');
+                if (alert) {
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.remove(), 500);
+                }
+        }, 3000);
     </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Request;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller{
 
@@ -9,8 +9,8 @@ class DashboardController extends Controller{
         $userType = $request->session()->get('user_type');
 
         return match($userType){
-            1 => view('admin.dashboard'),
-            2 => view('employee.dashboard'),
+            'admin' => view('admin.dashboard'),
+            'employee' => view('employee.dashboard'),
             default => view('individual_user.dashboard')
         };
     }

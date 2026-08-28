@@ -41,7 +41,7 @@ class LoginService extends AuthService{
 
         if($isAdmin === 1){
             $user_type = 'admin';
-        }elseif(!$is_user && $accountType === 'organization'){
+        }elseif($is_user !==1 && $accountType === 'organization'){
             $user_type = 'employee';
         }else{
             $user_type = 'individual';

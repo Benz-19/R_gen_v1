@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginAuthController;
+use App\Http\Controllers\Auth\LogoutAuthController;
 use App\Http\Controllers\Auth\RegisterAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PagesController;
@@ -17,6 +18,7 @@ Route::get('/', function () {
 // Authentication
 Route::get('/login', [LoginAuthController::class, 'loginPage']);//login
 Route::get('/register', [RegisterAuthController::class, 'registerPage']);
+Route::post('/logout', [LogoutAuthController::class, 'logout']);
 
 // Process Login
 Route::post('/process-login', [LoginAuthController::class, 'login']);
