@@ -12,6 +12,6 @@ public function logout(Request $request){
     $request->session()->invalidate();
     $request->session()->regenerateToken();
 
-    return redirect('/');
+    return redirect('/login');
 }
 }

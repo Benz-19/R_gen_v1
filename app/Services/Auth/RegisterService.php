@@ -15,7 +15,7 @@ class RegisterService extends AuthService
     {
         return DB::transaction(function () use ($data) {
             $user = User::create([
-                'name'     => $data['fullName'],
+                'username'     => $data['fullName'],
                 'email'    => $data['email'],
                 'password' => Hash::make($data['password']),
             ]);
@@ -27,16 +27,20 @@ class RegisterService extends AuthService
                 $workspace = Workspace::where('name', $data['companyName'])->first();
 
                 if ($workspace) {
+                    // employee
                     if ($workspace->join_code !== $data['workspaceCode']) {
                         throw new Exception("Invalid Join Code for this organization.");
                     }
                     $workspaceId = $workspace->id;
                 } else {
+                    // admin
                     $isAdmin = true;
                     $workspace = Workspace::create([
                         'name'          => $data['companyName'],
                         'join_code'     => Workspace::generateUniqueCode(),
+                        'user_id'       => $user->id,
                         'admin_user_id' => $user->id,
+                        'is_verified' => true,
                     ]);
                     $workspaceId = $workspace->id;
                 }

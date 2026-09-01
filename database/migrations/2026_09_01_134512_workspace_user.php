@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('workspaces', function (Blueprint $table) {
+        Schema::create('workspace_user', function(Blueprint $table){
             $table->id();
-            $table->string('name')->unique();
-            $table->string('join_code')->unique();
-            $table->integer('user_id')->nullable();
-            $table->foreignId('admin_user_id')->nullable();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('workspace_id')->constrained()->onDelete('cascade');
             $table->boolean('is_verified')->default(0);
             $table->timestamps();
+
+            $table->unique(['user_id', 'workspace_id']);
         });
     }
 
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('workspaces');
+        Schema::dropIfExists('workspace_user');
     }
 };

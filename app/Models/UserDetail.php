@@ -15,6 +15,7 @@ class UserDetail extends Model
         'primary_data_source',
         'workspace_code',
         'selected_role',
+        'workspace_id',
     ];
 
     public function user()

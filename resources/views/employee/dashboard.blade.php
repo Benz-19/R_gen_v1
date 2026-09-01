@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Employee Dashboard - ReconAgent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,61 +14,48 @@
         }
     </style>
 </head>
-<body class="bg-black text-slate-100 font-sans antialiased bg-grid-pattern min-h-screen">
+<body class="bg-black text-slate-100 font-sans antialiased bg-grid-pattern min-h-screen relative">
+
+    <!-- Modal for Workspace Access -->
+    <div id="verificationModal" class="{{ $is_verified ? 'hidden' : 'flex' }} fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-xl p-4">
+        <div class="bg-neutral-900 border border-neutral-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-6">
+            <div class="space-y-2">
+                <h2 class="text-xl font-bold text-white tracking-tight">Workspace Access Required</h2>
+                <p class="text-xs text-neutral-400">Enter your organization details to link your employee account and unlock dashboard features.</p>
+            </div>
+
+            <div id="modalAlert" class="hidden p-3 rounded-lg text-xs font-medium border"></div>
+
+            <form id="verificationForm" onsubmit="event.preventDefault(); verifyEmployeeAccount();" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-neutral-400 font-medium mb-1">Company Name</label>
+                    <input type="text" id="companyName" class="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-sm text-white focus:outline-none focus:border-white transition-colors" placeholder="e.g. Acme Corp" required>
+                </div>
+                <div>
+                    <label class="block text-xs text-neutral-400 font-medium mb-1">Join Code</label>
+                    <input type="text" id="joinCode" class="w-full px-3 py-2 bg-black border border-neutral-800 rounded-lg text-sm text-white focus:outline-none focus:border-white transition-colors font-mono" placeholder="e.g. 123456" required>
+                </div>
+                <button type="submit" id="submitBtn" class="w-full py-2.5 bg-white text-black font-semibold rounded-lg text-xs hover:bg-neutral-200 transition-colors">
+                    Verify & Join Workspace
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="flex h-screen overflow-hidden">
         <aside class="w-64 bg-black/80 border-r border-neutral-800 flex flex-col justify-between shrink-0 backdrop-blur-md">
             <div>
                 <div class="p-6 border-b border-neutral-800">
                     <div class="flex items-center gap-3">
-                        <!-- ReconAgent Logo -->
                         <div class="w-8 h-8 rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center">
-                            <svg
-                                class="w-5 h-5 text-white"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <!-- Top layer -->
-                                <path
-                                    d="M12 4L18 7.5L12 11L6 7.5L12 4Z"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linejoin="round"
-                                />
-
-                                <!-- Middle layer -->
-                                <path
-                                    d="M6 10.5L12 14L18 10.5"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-
-                                <!-- Bottom layer -->
-                                <path
-                                    d="M6 14L12 17.5L18 14"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-
-                                <!-- Bottom connection -->
-                                <path
-                                    d="M6 17.5L12 21L18 17.5"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
+                            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 4L18 7.5L12 11L6 7.5L12 4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                                <path d="M6 10.5L12 14L18 10.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6 14L12 17.5L18 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6 17.5L12 21L18 17.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
-
-                        <!-- Wordmark -->
-                        <span class="text-lg font-bold tracking-tight text-white">
-                            ReconAgent
-                        </span>
+                        <span class="text-lg font-bold tracking-tight text-white">ReconAgent</span>
                     </div>
                 </div>
                 <nav class="p-4 space-y-1 text-sm font-medium">
@@ -119,5 +107,65 @@
             </section>
         </main>
     </div>
+
+    <script>
+        function showAlert(message, isError = true) {
+            const alertBox = document.getElementById('modalAlert');
+            alertBox.classList.remove('hidden', 'bg-red-500/10', 'border-red-500/30', 'text-red-400', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+            
+            if (isError) {
+                alertBox.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-400');
+            } else {
+                alertBox.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+            }
+            
+            alertBox.textContent = message;
+        }
+
+        async function verifyEmployeeAccount() {
+            const joinCode = document.getElementById('joinCode')?.value.trim();
+            const companyName = document.getElementById('companyName')?.value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!joinCode || !companyName) {
+                showAlert("Please provide both join code and company name.");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Verifying...';
+
+            try {
+                const response = await fetch('/api/v1/verify-employee-account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({
+                        join_code: joinCode,
+                        company_name: companyName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.state) {
+                    showAlert(data.message || 'Verification failed. Check your credentials.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Verify & Join Workspace';
+                    return;
+                }
+
+                showAlert("Verified successfully! Loading dashboard...", false);
+                setTimeout(() => window.location.reload(), 1000);
+
+            } catch (error) {
+                showAlert("A server error occurred. Please try again.");
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Verify & Join Workspace';
+            }
+        }
+    </script>
 </body>
 </html>

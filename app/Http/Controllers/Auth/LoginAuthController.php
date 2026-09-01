@@ -19,10 +19,11 @@ class LoginAuthController extends AuthController{
         $auth_service = new LoginService();
         $res = $auth_service->login($request);
 
-        if($res && ($res['user_id'] && $res['user_type'])){
+        if($res && isset($res['user_id'], $res['user_type']) && $res['user_type'] != ''){
             $request->session()->put('user_id', $res['user_id']);
             $request->session()->put('user_type', $res['user_type']);
-
+            $request->session()->save();
+            
             return redirect()->intended('/dashboard');
         }
 
