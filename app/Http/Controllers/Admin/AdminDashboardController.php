@@ -16,13 +16,9 @@ class AdminDashboardController extends Controller{
             'user_id' => $request->session()->get('user_id'),
         ];
 
-        $user_management = [
-            'username' => '',
-            'role' => '',
-            'status' => ''
-        ];
+        $user_management = $this->userManagement($request);
 
-        return view('admin.dashboard', compact('metrics'));
+        return view('admin.dashboard', compact('metrics', 'user_management'));
     }
 
     public function userManagement(Request $request){

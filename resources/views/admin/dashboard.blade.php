@@ -180,6 +180,7 @@
                     <table class="w-full text-left text-xs min-w-[400px]">
                         <thead class="bg-neutral-900/60 text-neutral-400 uppercase tracking-wider font-mono border-b border-neutral-800">
                             <tr>
+                                <th class="p-3">S/N</th>
                                 <th class="p-3">User</th>
                                 <th class="p-3">Role</th>
                                 <th class="p-3">Status</th>
@@ -187,16 +188,23 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-neutral-800 text-neutral-300">
-                            <tr>
-                                <td class="p-3 font-medium text-white">Admin Account</td>
-                                <td class="p-3">
-                                    <span class="px-2 py-0.5 rounded text-[10px] bg-white/10 text-white border border-white/20 font-mono">ADMIN</span>
-                                </td>
-                                <td class="p-3 text-emerald-400 font-medium">Active</td>
-                                <td class="p-3 text-right">
-                                    <button class="text-neutral-400 hover:text-white transition-colors">Manage</button>
-                                </td>
-                            </tr>
+                            @if(blank($user_management))
+                                <p>No Record Found!</p>
+                            @else
+                                @foreach($user_management as $user)
+                                    <tr>
+                                        <td class="p-3 font-medium text-white">{{$loop->iteration}}</td>
+                                        <td class="p-3 font-medium text-white">{{$user->username}} <br> {{$user->email}}</td>
+                                        <td class="p-3">
+                                            <span class="px-2 py-0.5 rounded text-[10px] bg-white/10 text-white border border-white/20 font-mono">{{$user->is_admin  ? 'ADMIN' : 'EMPLOYEE'}}</span>
+                                        </td>
+                                        <td class="p-3 font-medium {{$user->account_status ? 'text-emerald-400' : 'text-amber-400' }}">{{$user->account_status ? 'Active' : 'Inactive'}}</td>
+                                        <td class="p-3 text-right">
+                                            <button class="text-neutral-400 hover:text-white transition-colors">Manage</button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @endif
                         </tbody>
                     </table>
                 </div>
