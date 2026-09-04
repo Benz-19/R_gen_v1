@@ -2,6 +2,7 @@
 <html lang="en" class="h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-mono">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReconAgent - Account Registration</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -170,259 +171,259 @@
             </div>
 
             <!-- Form Body -->
-            <div class="p-6 sm:p-7 relative min-h-[220px]">
+                <div class="p-6 sm:p-7 relative min-h-[220px]">
 
-                <!-- STEP 1: Account Type Selection -->
-                <div id="step-1" class="step-panel step-active space-y-5">
-                    <div class="text-center">
-                        <h1 class="text-2xl font-bold tracking-tight text-white font-sans">Get Started</h1>
-                        <p class="text-xs text-slate-400 mt-1">Select your account structure to initiate workspace creation</p>
+                    <!-- STEP 1: Account Type Selection -->
+                    <div id="step-1" class="step-panel step-active space-y-5">
+                        <div class="text-center">
+                            <h1 class="text-2xl font-bold tracking-tight text-white font-sans">Get Started</h1>
+                            <p class="text-xs text-slate-400 mt-1">Select your account structure to initiate workspace creation</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 pt-1">
+                            <label class="radio-card border border-slate-800 bg-slate-950/60 rounded-xl p-4 cursor-pointer block">
+                                <div class="flex items-start space-x-3">
+                                    <input type="radio" name="accountType" value="organization" class="mt-1 text-emerald-500 focus:ring-emerald-500/20 bg-slate-900 border-slate-700 transition-colors" onchange="handleAccountTypeChange('organization')" checked>
+                                    <div>
+                                        <span class="font-bold text-sm text-slate-200 block font-sans">Company / Enterprise</span>
+                                        <span class="text-xs text-slate-400 mt-1 block leading-relaxed">Establish or join an organizational workspace built for multi-entity ledger matching.</span>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="radio-card border border-slate-800 bg-slate-950/60 rounded-xl p-4 cursor-pointer block">
+                                <div class="flex items-start space-x-3">
+                                    <input type="radio" name="accountType" value="individual" class="mt-1 text-emerald-500 focus:ring-emerald-500/20 bg-slate-900 border-slate-700 transition-colors" onchange="handleAccountTypeChange('individual')">
+                                    <div>
+                                        <span class="font-bold text-sm text-slate-200 block font-sans">Individual / Sole Operator</span>
+                                        <span class="text-xs text-slate-400 mt-1 block leading-relaxed">Single-operator setup for independent financial record analysis and CSV reconciliation.</span>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-3 pt-1">
-                        <label class="radio-card border border-slate-800 bg-slate-950/60 rounded-xl p-4 cursor-pointer block">
-                            <div class="flex items-start space-x-3">
-                                <input type="radio" name="accountType" value="organization" class="mt-1 text-emerald-500 focus:ring-emerald-500/20 bg-slate-900 border-slate-700 transition-colors" onchange="handleAccountTypeChange('organization')" checked>
+                    <!-- STEP 2: Personal Details & Email Verification & Password Validation -->
+                    <div id="step-2" class="step-panel step-enter space-y-4">
+                        <div class="text-center">
+                            <h2 class="text-xl font-bold text-white font-sans">User Authentication</h2>
+                            <p class="text-xs text-slate-400 mt-1">Enter your credentials and verify email ownership</p>
+                        </div>
+
+                        <div class="space-y-3.5 pt-1">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Full Name</label>
+                                <input type="text" id="fullName" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Jane Doe" oninput="registrationState.fullName = this.value; hideAlert();">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Work Email Address</label>
+                                <div class="flex gap-2">
+                                    <input type="email" id="email" class="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="jane@company.com" oninput="registrationState.email = this.value; hideAlert();">
+                                    <button type="button" onclick="sendVerificationCode()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-200 font-medium text-xs rounded-lg transition-all duration-200 whitespace-nowrap">Send Code</button>
+                                </div>
+                            </div>
+
+                            <div id="code-drawer" class="smooth-box box-hidden p-3 bg-slate-950/80 border border-slate-800 rounded-lg space-y-2">
+                                <label class="block text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Verification Code</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="verificationCode" maxlength="4" class="w-28 px-3 py-1.5 bg-black border border-slate-800 rounded text-center tracking-widest text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="0000">
+                                    <button type="button" onclick="verifyCode()" class="px-3.5 py-1.5 bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/30 active:scale-95 font-medium text-xs rounded transition-all duration-200">Verify</button>
+                                </div>
+                                <p class="text-[10px] text-slate-500">Enter the code sent to your <span class="text-emerald-400">email</span> to pass verification.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Password</label>
+                                <input type="password" id="password" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="••••••••••••" oninput="validatePassword(this.value)">
+                                
+                                <!-- Real-time Password Rules Checklist -->
+                                <div class="mt-2.5 p-2.5 bg-slate-950/70 border border-slate-800/80 rounded-lg grid grid-cols-2 gap-1.5 text-[11px]">
+                                    <div id="rule-length" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
+                                        <span class="rule-icon font-bold">✕</span>
+                                        <span>At least 8 characters</span>
+                                    </div>
+                                    <div id="rule-letter" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
+                                        <span class="rule-icon font-bold">✕</span>
+                                        <span>Contains letters</span>
+                                    </div>
+                                    <div id="rule-number" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
+                                        <span class="rule-icon font-bold">✕</span>
+                                        <span>Contains numbers</span>
+                                    </div>
+                                    <div id="rule-special" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
+                                        <span class="rule-icon font-bold">✕</span>
+                                        <span>At least 1 special char</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: Workspace Configuration -->
+                    <div id="step-3" class="step-panel step-enter space-y-4">
+                        <div class="text-center">
+                            <h2 class="text-xl font-bold text-white font-sans">Workspace Configuration</h2>
+                            <p class="text-xs text-slate-400 mt-1">Configure workspace parameters and tenant association</p>
+                        </div>
+
+                        <!-- Individual Flow -->
+                        <div id="individual-workspace-flow" class="smooth-box box-hidden space-y-3 pt-1">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Workspace Label / Name</label>
+                                <input type="text" id="indWorkspaceName" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Personal Workspace" oninput="registrationState.companyName = this.value; hideAlert();">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Primary Data Source</label>
+                                <select id="indDataSource" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-all duration-200" onchange="registrationState.primaryDataSource = this.value; hideAlert();">
+                                    <option value="" class="bg-slate-900">Select source structure...</option>
+                                    <option value="CSV File Uploads" class="bg-slate-900">CSV File Uploads</option>
+                                    <option value="Manual Spreadsheet Exports" class="bg-slate-900">Manual Spreadsheet Exports</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Organization Flow -->
+                        <div id="org-workspace-flow" class="smooth-box space-y-3 pt-1">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Company / Organization Name</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="companyName" class="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Acme Financials Inc." oninput="registrationState.companyName = this.value; registrationState.isCompanyVerified = false; hideAlert();">
+                                    <button type="button" onclick="checkCompanyDatabase()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-200 font-medium text-xs rounded-lg transition-all duration-200 whitespace-nowrap">Verify Name</button>
+                                </div>
+                            </div>
+
+                            <div id="org-status-box" class="smooth-box box-hidden p-3 rounded-lg border text-xs leading-relaxed"></div>
+
+                            <div id="role-selection-box" class="smooth-box box-hidden">
+                                <label class="block text-xs text-slate-400 mb-1">Select Initial Administrative Role</label>
+                                <select id="selectedRole" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-all duration-200" onchange="registrationState.selectedRole = this.value; hideAlert();">
+                                    <option value="" class="bg-slate-900">Select role assignment...</option>
+                                    <option value="Organization Administrator" class="bg-slate-900">Organization Administrator</option>
+                                    <option value="Finance Lead / Controller" class="bg-slate-900">Finance Lead / Controller</option>
+                                </select>
+                            </div>
+
+                            <!-- Workspace Code Container -->
+                            <div id="workspace-code-box" class="box-hidden space-y-2 mt-4">
+                                <label for="workspaceCodeInput" class="block text-xs font-medium text-slate-300">Workspace Join Code</label>
+                                <div class="flex space-x-2">
+                                    <input 
+                                        type="text" 
+                                        id="workspaceCodeInput" 
+                                        class="flex-1 bg-slate-900 border border-slate-800 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" 
+                                        placeholder="Enter join code provided by your admin"
+                                        oninput="registrationState.workspaceCode = this.value; registrationState.isWorkspaceCodeVerified = false;"
+                                    />
+                                    <button 
+                                        type="button" 
+                                        onclick="verifyCompanyJoinCode()" 
+                                        class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-lg text-xs transition-colors shrink-0"
+                                    >
+                                        Verify Code
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4: Review, Disclaimer & Terms -->
+                    <div id="step-4" class="step-panel step-enter space-y-4">
+                        <div class="text-center">
+                            <h2 class="text-xl font-bold text-white font-sans">Review Registration</h2>
+                            <p class="text-xs text-slate-400 mt-1">Confirm configuration prior to tenant allocation</p>
+                        </div>
+
+                        <div class="space-y-2 pt-1">
+                            <div class="p-2.5 bg-slate-950 border border-slate-800/80 rounded-lg flex justify-between items-center text-xs transition-all hover:border-slate-700">
                                 <div>
-                                    <span class="font-bold text-sm text-slate-200 block font-sans">Company / Enterprise</span>
-                                    <span class="text-xs text-slate-400 mt-1 block leading-relaxed">Establish or join an organizational workspace built for multi-entity ledger matching.</span>
+                                    <span class="text-[10px] uppercase font-semibold text-slate-500 block">Account Type</span>
+                                    <span id="summary-type" class="font-medium text-slate-200 capitalize">-</span>
                                 </div>
+                                <button type="button" onclick="goToStep(1)" class="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-emerald-400 font-sans text-xs font-medium rounded transition-all duration-200">
+                                    Edit
+                                </button>
                             </div>
-                        </label>
 
-                        <label class="radio-card border border-slate-800 bg-slate-950/60 rounded-xl p-4 cursor-pointer block">
-                            <div class="flex items-start space-x-3">
-                                <input type="radio" name="accountType" value="individual" class="mt-1 text-emerald-500 focus:ring-emerald-500/20 bg-slate-900 border-slate-700 transition-colors" onchange="handleAccountTypeChange('individual')">
+                            <div class="p-2.5 bg-slate-950 border border-slate-800/80 rounded-lg flex justify-between items-center text-xs transition-all hover:border-slate-700">
                                 <div>
-                                    <span class="font-bold text-sm text-slate-200 block font-sans">Individual / Sole Operator</span>
-                                    <span class="text-xs text-slate-400 mt-1 block leading-relaxed">Single-operator setup for independent financial record analysis and CSV reconciliation.</span>
+                                    <span class="text-[10px] uppercase font-semibold text-slate-500 block">Identity</span>
+                                    <span id="summary-user" class="font-medium text-slate-200">-</span>
                                 </div>
+                                <button type="button" onclick="goToStep(2)" class="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-emerald-400 font-sans text-xs font-medium rounded transition-all duration-200">
+                                    Edit
+                                </button>
                             </div>
-                        </label>
-                    </div>
-                </div>
 
-                <!-- STEP 2: Personal Details & Email Verification & Password Validation -->
-                <div id="step-2" class="step-panel step-enter space-y-4">
-                    <div class="text-center">
-                        <h2 class="text-xl font-bold text-white font-sans">User Authentication</h2>
-                        <p class="text-xs text-slate-400 mt-1">Enter your credentials and verify email ownership</p>
-                    </div>
-
-                    <div class="space-y-3.5 pt-1">
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Full Name</label>
-                            <input type="text" id="fullName" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Jane Doe" oninput="registrationState.fullName = this.value; hideAlert();">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Work Email Address</label>
-                            <div class="flex gap-2">
-                                <input type="email" id="email" class="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="jane@company.com" oninput="registrationState.email = this.value; hideAlert();">
-                                <button type="button" onclick="sendVerificationCode()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-200 font-medium text-xs rounded-lg transition-all duration-200 whitespace-nowrap">Send Code</button>
-                            </div>
-                        </div>
-
-                        <div id="code-drawer" class="smooth-box box-hidden p-3 bg-slate-950/80 border border-slate-800 rounded-lg space-y-2">
-                            <label class="block text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Verification Code</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="verificationCode" maxlength="4" class="w-28 px-3 py-1.5 bg-black border border-slate-800 rounded text-center tracking-widest text-emerald-400 font-mono text-sm focus:outline-none focus:border-emerald-500 transition-colors" placeholder="0000">
-                                <button type="button" onclick="verifyCode()" class="px-3.5 py-1.5 bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/30 active:scale-95 font-medium text-xs rounded transition-all duration-200">Verify</button>
-                            </div>
-                            <p class="text-[10px] text-slate-500">Enter the code sent to your <span class="text-emerald-400">email</span> to pass verification.</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Password</label>
-                            <input type="password" id="password" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="••••••••••••" oninput="validatePassword(this.value)">
-                            
-                            <!-- Real-time Password Rules Checklist -->
-                            <div class="mt-2.5 p-2.5 bg-slate-950/70 border border-slate-800/80 rounded-lg grid grid-cols-2 gap-1.5 text-[11px]">
-                                <div id="rule-length" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
-                                    <span class="rule-icon font-bold">✕</span>
-                                    <span>At least 8 characters</span>
+                            <div class="p-2.5 bg-slate-950 border border-slate-800/80 rounded-lg flex justify-between items-center text-xs transition-all hover:border-slate-700">
+                                <div>
+                                    <span class="text-[10px] uppercase font-semibold text-slate-500 block">Workspace Target</span>
+                                    <span id="summary-workspace" class="font-medium text-slate-200">-</span>
                                 </div>
-                                <div id="rule-letter" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
-                                    <span class="rule-icon font-bold">✕</span>
-                                    <span>Contains letters</span>
-                                </div>
-                                <div id="rule-number" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
-                                    <span class="rule-icon font-bold">✕</span>
-                                    <span>Contains numbers</span>
-                                </div>
-                                <div id="rule-special" class="flex items-center space-x-1.5 text-slate-500 transition-colors duration-200">
-                                    <span class="rule-icon font-bold">✕</span>
-                                    <span>At least 1 special char</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- STEP 3: Workspace Configuration -->
-                <div id="step-3" class="step-panel step-enter space-y-4">
-                    <div class="text-center">
-                        <h2 class="text-xl font-bold text-white font-sans">Workspace Configuration</h2>
-                        <p class="text-xs text-slate-400 mt-1">Configure workspace parameters and tenant association</p>
-                    </div>
-
-                    <!-- Individual Flow -->
-                    <div id="individual-workspace-flow" class="smooth-box box-hidden space-y-3 pt-1">
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Workspace Label / Name</label>
-                            <input type="text" id="indWorkspaceName" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Personal Workspace" oninput="registrationState.companyName = this.value; hideAlert();">
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Primary Data Source</label>
-                            <select id="indDataSource" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-all duration-200" onchange="registrationState.primaryDataSource = this.value; hideAlert();">
-                                <option value="" class="bg-slate-900">Select source structure...</option>
-                                <option value="CSV File Uploads" class="bg-slate-900">CSV File Uploads</option>
-                                <option value="Manual Spreadsheet Exports" class="bg-slate-900">Manual Spreadsheet Exports</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Organization Flow -->
-                    <div id="org-workspace-flow" class="smooth-box space-y-3 pt-1">
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Company / Organization Name</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="companyName" class="flex-1 px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-all duration-200" placeholder="Acme Financials Inc." oninput="registrationState.companyName = this.value; registrationState.isCompanyVerified = false; hideAlert();">
-                                <button type="button" onclick="checkCompanyDatabase()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-200 font-medium text-xs rounded-lg transition-all duration-200 whitespace-nowrap">Verify Name</button>
-                            </div>
-                        </div>
-
-                        <div id="org-status-box" class="smooth-box box-hidden p-3 rounded-lg border text-xs leading-relaxed"></div>
-
-                        <div id="role-selection-box" class="smooth-box box-hidden">
-                            <label class="block text-xs text-slate-400 mb-1">Select Initial Administrative Role</label>
-                            <select id="selectedRole" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-all duration-200" onchange="registrationState.selectedRole = this.value; hideAlert();">
-                                <option value="" class="bg-slate-900">Select role assignment...</option>
-                                <option value="Organization Administrator" class="bg-slate-900">Organization Administrator</option>
-                                <option value="Finance Lead / Controller" class="bg-slate-900">Finance Lead / Controller</option>
-                            </select>
-                        </div>
-
-                        <!-- Workspace Code Container -->
-                        <div id="workspace-code-box" class="box-hidden space-y-2 mt-4">
-                            <label for="workspaceCodeInput" class="block text-xs font-medium text-slate-300">Workspace Join Code</label>
-                            <div class="flex space-x-2">
-                                <input 
-                                    type="text" 
-                                    id="workspaceCodeInput" 
-                                    class="flex-1 bg-slate-900 border border-slate-800 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" 
-                                    placeholder="Enter join code provided by your admin"
-                                    oninput="registrationState.workspaceCode = this.value; registrationState.isWorkspaceCodeVerified = false;"
-                                />
-                                <button 
-                                    type="button" 
-                                    onclick="verifyCompanyJoinCode()" 
-                                    class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-lg text-xs transition-colors shrink-0"
-                                >
-                                    Verify Code
+                                <button type="button" onclick="goToStep(3)" class="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-emerald-400 font-sans text-xs font-medium rounded transition-all duration-200">
+                                    Edit
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- STEP 4: Review, Disclaimer & Terms -->
-                <div id="step-4" class="step-panel step-enter space-y-4">
-                    <div class="text-center">
-                        <h2 class="text-xl font-bold text-white font-sans">Review Registration</h2>
-                        <p class="text-xs text-slate-400 mt-1">Confirm configuration prior to tenant allocation</p>
+                        <div class="p-3 bg-amber-950/30 border border-amber-500/30 text-amber-300 rounded-lg text-xs leading-relaxed">
+                            <strong class="font-sans font-semibold text-amber-200 block mb-0.5">Tenant Isolation Notice</strong>
+                            ReconAgent enforces strict organizational boundaries. All uploaded datasets are isolated to your workspace.
+                        </div>
+
+                        <div class="flex items-center space-x-2.5 pt-1">
+                            <input type="checkbox" id="termsAgreed" onchange="toggleRegisterButton(this.checked)" class="w-4 h-4 text-emerald-500 bg-slate-950 border-slate-800 rounded focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer">
+                            <label for="termsAgreed" class="text-xs text-slate-400 cursor-pointer select-none">
+                                I agree to the <a href="/privacy" target="_blank" class="text-emerald-400 hover:underline">Privacy Policy & Terms</a>.
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="space-y-2 pt-1">
-                        <div class="p-2.5 bg-slate-950 border border-slate-800/80 rounded-lg flex justify-between items-center text-xs transition-all hover:border-slate-700">
-                            <div>
-                                <span class="text-[10px] uppercase font-semibold text-slate-500 block">Account Type</span>
-                                <span id="summary-type" class="font-medium text-slate-200 capitalize">-</span>
+                    <!-- STEP 5: Animated Onboarding Simulation -->
+                    <div id="step-5" class="step-panel step-enter space-y-4 py-2">
+                        <div class="text-center space-y-1">
+                            <h2 class="text-xl font-bold text-white font-sans">Provisioning Workspace</h2>
+                            <p class="text-xs text-slate-400">Configuring ReconEngine isolated environment</p>
+                        </div>
+
+                        <div class="space-y-2.5 pt-1 max-w-md mx-auto" id="pipeline-steps-container">
+                            <div id="phase-0" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500">
+                                <span class="text-slate-400">Processing account registration...</span>
+                                <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">1</div>
                             </div>
-                            <button type="button" onclick="goToStep(1)" class="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-emerald-400 font-sans text-xs font-medium rounded transition-all duration-200">
-                                Edit
-                            </button>
-                        </div>
-
-                        <div class="p-2.5 bg-slate-950 border border-slate-800/80 rounded-lg flex justify-between items-center text-xs transition-all hover:border-slate-700">
-                            <div>
-                                <span class="text-[10px] uppercase font-semibold text-slate-500 block">Identity</span>
-                                <span id="summary-user" class="font-medium text-slate-200">-</span>
+                            <div id="phase-1" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500 opacity-40">
+                                <span class="text-slate-400">Checking authenticity & domain permissions...</span>
+                                <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">2</div>
                             </div>
-                            <button type="button" onclick="goToStep(2)" class="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-emerald-400 font-sans text-xs font-medium rounded transition-all duration-200">
-                                Edit
-                            </button>
-                        </div>
-
-                        <div class="p-2.5 bg-slate-950 border border-slate-800/80 rounded-lg flex justify-between items-center text-xs transition-all hover:border-slate-700">
-                            <div>
-                                <span class="text-[10px] uppercase font-semibold text-slate-500 block">Workspace Target</span>
-                                <span id="summary-workspace" class="font-medium text-slate-200">-</span>
+                            <div id="phase-2" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500 opacity-40">
+                                <span class="text-slate-400">Syncing tenant isolation & workspace keys...</span>
+                                <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">3</div>
                             </div>
-                            <button type="button" onclick="goToStep(3)" class="px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-emerald-400 font-sans text-xs font-medium rounded transition-all duration-200">
-                                Edit
-                            </button>
+                            <div id="phase-3" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500 opacity-40">
+                                <span class="text-slate-400">Calling on ReconAgent baseline engine...</span>
+                                <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">4</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="p-3 bg-amber-950/30 border border-amber-500/30 text-amber-300 rounded-lg text-xs leading-relaxed">
-                        <strong class="font-sans font-semibold text-amber-200 block mb-0.5">Tenant Isolation Notice</strong>
-                        ReconAgent enforces strict organizational boundaries. All uploaded datasets are isolated to your workspace.
+                    <!-- Final Completion Screen - Perfectly Centered Flexbox Alignment -->
+                    <div id="step-completion-screen" class="step-panel step-enter py-10 flex flex-col items-center justify-center text-center space-y-4">
+                        <div class="w-12 h-12 bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 rounded-full flex items-center justify-center transition-transform duration-500 scale-110 shadow-lg shadow-emerald-500/10">
+                            <svg class="w-6 h-6 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div class="space-y-1">
+                            <h2 class="text-xl font-bold text-white font-sans tracking-tight">Workspace Ready</h2>
+                            <p class="text-slate-400 text-xs">Redirecting to sign in interface...</p>
+                        </div>
                     </div>
 
-                    <div class="flex items-center space-x-2.5 pt-1">
-                        <input type="checkbox" id="termsAgreed" onchange="toggleRegisterButton(this.checked)" class="w-4 h-4 text-emerald-500 bg-slate-950 border-slate-800 rounded focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer">
-                        <label for="termsAgreed" class="text-xs text-slate-400 cursor-pointer select-none">
-                            I agree to the <a href="/privacy" target="_blank" class="text-emerald-400 hover:underline">Privacy Policy & Terms</a>.
-                        </label>
+                    <!-- Navigation Controls -->
+                    <div id="nav-buttons" class="flex justify-between items-center pt-4 border-t border-slate-800/80 mt-4 transition-all duration-300">
+                        <button type="button" id="btn-back" onclick="previousStep()" class="px-4 py-2 bg-slate-950 hover:bg-slate-800 active:scale-95 border border-slate-800 text-slate-300 font-medium text-xs rounded-lg transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100">Back</button>
+                        <button type="button" id="btn-next" onclick="nextStep()" class="px-5 py-2 bg-white text-slate-950 font-sans font-bold text-xs rounded-lg hover:bg-slate-200 active:scale-95 transition-all duration-200 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed disabled:active:scale-100 shadow-md">Next &rarr;</button>
                     </div>
+
                 </div>
-
-                <!-- STEP 5: Animated Onboarding Simulation -->
-                <div id="step-5" class="step-panel step-enter space-y-4 py-2">
-                    <div class="text-center space-y-1">
-                        <h2 class="text-xl font-bold text-white font-sans">Provisioning Workspace</h2>
-                        <p class="text-xs text-slate-400">Configuring ReconEngine isolated environment</p>
-                    </div>
-
-                    <div class="space-y-2.5 pt-1 max-w-md mx-auto" id="pipeline-steps-container">
-                        <div id="phase-0" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500">
-                            <span class="text-slate-400">Processing account registration...</span>
-                            <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">1</div>
-                        </div>
-                        <div id="phase-1" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500 opacity-40">
-                            <span class="text-slate-400">Checking authenticity & domain permissions...</span>
-                            <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">2</div>
-                        </div>
-                        <div id="phase-2" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500 opacity-40">
-                            <span class="text-slate-400">Syncing tenant isolation & workspace keys...</span>
-                            <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">3</div>
-                        </div>
-                        <div id="phase-3" class="p-2.5 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-xs transition-all duration-500 opacity-40">
-                            <span class="text-slate-400">Calling on ReconAgent baseline engine...</span>
-                            <div class="status-icon w-5 h-5 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold transition-all duration-500 shrink-0">4</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Final Completion Screen - Perfectly Centered Flexbox Alignment -->
-                <div id="step-completion-screen" class="step-panel step-enter py-10 flex flex-col items-center justify-center text-center space-y-4">
-                    <div class="w-12 h-12 bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 rounded-full flex items-center justify-center transition-transform duration-500 scale-110 shadow-lg shadow-emerald-500/10">
-                        <svg class="w-6 h-6 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                    </div>
-                    <div class="space-y-1">
-                        <h2 class="text-xl font-bold text-white font-sans tracking-tight">Workspace Ready</h2>
-                        <p class="text-slate-400 text-xs">Redirecting to sign in interface...</p>
-                    </div>
-                </div>
-
-                <!-- Navigation Controls -->
-                <div id="nav-buttons" class="flex justify-between items-center pt-4 border-t border-slate-800/80 mt-4 transition-all duration-300">
-                    <button type="button" id="btn-back" onclick="previousStep()" class="px-4 py-2 bg-slate-950 hover:bg-slate-800 active:scale-95 border border-slate-800 text-slate-300 font-medium text-xs rounded-lg transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100">Back</button>
-                    <button type="button" id="btn-next" onclick="nextStep()" class="px-5 py-2 bg-white text-slate-950 font-sans font-bold text-xs rounded-lg hover:bg-slate-200 active:scale-95 transition-all duration-200 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed disabled:active:scale-100 shadow-md">Next &rarr;</button>
-                </div>
-
-            </div>
         </div>
     </main>
 

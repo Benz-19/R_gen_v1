@@ -22,8 +22,9 @@ class AdminDasboardService{
             FROM users as u
             LEFT JOIN user_details as ud ON ud.user_id = u.id
             LEFT JOIN workspace_user as wu ON wu.user_id = u.id
-            LEFT JOIN workspaces as ws ON ws.id = wu.workspace_id;
-        ');
+            LEFT JOIN workspaces as ws ON ws.id = wu.workspace_id
+            WHERE ws.id=? OR u.id=?;
+        ', [$workspace->id, $admin_id]);
         
     }
 } 

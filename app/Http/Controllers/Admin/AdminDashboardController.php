@@ -9,11 +9,10 @@ class AdminDashboardController extends Controller{
 
     public function index(Request $request){
         $metrics = [
-            'total_users' => 0,
+            'total_users' => count($this->userManagement($request)),
             'active_workspace' => 'default organization',
             'pending_exceptions' => 0,
             'total_reconciled' => 20,
-            'user_id' => $request->session()->get('user_id'),
         ];
 
         $user_management = $this->userManagement($request);

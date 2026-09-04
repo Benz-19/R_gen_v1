@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - ReconAgent</title>
+    <title>Team Members - ReconAgent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .bg-grid-pattern {
@@ -55,7 +55,7 @@
 
                 <!-- Navigation Links -->
                 <nav class="p-4 space-y-1 text-sm font-medium pt-20 md:pt-4">
-                    <a href="#" class="flex items-center px-3 py-2.5 rounded-lg bg-white/10 text-white font-semibold">
+                    <a href="/dashboard" class="flex items-center px-3 py-2.5 rounded-lg bg-white/10 text-white font-semibold">
                         Dashboard
                     </a>
                     <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">
@@ -68,7 +68,7 @@
                     <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">
                         Data Sources & APIs
                     </a>
-                    <a href="/team-members" class="flex items-center px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">
+                    <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">
                         Team Members
                     </a>
                 </nav>
@@ -114,56 +114,6 @@
                     <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Active Team Members</p>
                     <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $metrics['total_users'] ?? 1 }}</p>
                 </div>
-
-                <div class="bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm">
-                    <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Reconciled Transactions</p>
-                    <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $metrics['total_reconciled'] ?? 0 }}</p>
-                </div>
-
-                <div class="bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm">
-                    <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Unmatched Discrepancies</p>
-                    <p class="text-2xl font-bold mt-2 text-emerald-400 font-mono">{{ $metrics['pending_exceptions'] ?? 0 }}</p>
-                </div>
-
-                <div class="bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm">
-                    <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Automation Match Rate</p>
-                    <p class="text-2xl font-bold mt-2 text-neutral-300 font-mono">100%</p>
-                </div>
-            </section>
-
-            <!-- Recent Reconciliation Activity -->
-            <section class="bg-black/40 border border-neutral-800 rounded-xl p-4 sm:p-6 backdrop-blur-sm mb-6 md:mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-base font-semibold text-white">Recent Data Processing Runs</h2>
-                        <p class="text-xs text-neutral-400 mt-0.5">Automated background matching sessions across integrated APIs and datasets.</p>
-                    </div>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs min-w-[500px]">
-                        <thead class="bg-neutral-900/60 text-neutral-400 uppercase tracking-wider font-mono border-b border-neutral-800">
-                            <tr>
-                                <th class="p-3">Run ID</th>
-                                <th class="p-3">Source Dataset</th>
-                                <th class="p-3">Status</th>
-                                <th class="p-3">Execution Speed</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-neutral-800 text-neutral-300">
-                            <tr>
-                                <td class="p-3 font-medium text-white font-mono">#RUN-8921</td>
-                                <td class="p-3">API Data Sync & Rest Integration</td>
-                                <td class="p-3 text-emerald-400 font-medium">Completed</td>
-                                <td class="p-3 font-mono">120ms</td>
-                                <td class="p-3 text-right">
-                                    <button class="text-neutral-400 hover:text-white transition-colors">View Log</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </section>
 
             <!-- Workspace Users Section -->
@@ -189,7 +139,7 @@
                         </thead>
                         <tbody class="divide-y divide-neutral-800 text-neutral-300">
                             @if(blank($user_management))
-                                <p class="p-3 font-medium text-white text-center text-yellow-400">No Record Found!</p>
+                                <p>No Record Found!</p>
                             @else
                                 @foreach($user_management as $user)
                                     <tr>
