@@ -99,8 +99,8 @@
             </nav>
 
             <div class="flex items-center gap-2 sm:gap-4">
-                <a href="/login" class="text-xs sm:text-sm font-medium text-neutral-400 hover:text-white transition px-2.5 sm:px-4 py-2">Sign In</a>
-                <a href="/register" class="text-xs sm:text-sm font-semibold bg-white text-black hover:bg-neutral-200 transition px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1.5 sm:gap-2 group">
+                <a href="/register" class="text-xs sm:text-sm font-medium text-neutral-400 hover:text-white transition px-2.5 sm:px-4 py-2">Sign Up</a>
+                <a href="/login" class="text-xs sm:text-sm font-semibold bg-white text-black hover:bg-neutral-200 transition px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg flex items-center gap-1.5 sm:gap-2 group">
                     <span>Launch App</span>
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition"></i>
                 </a>

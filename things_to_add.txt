@@ -1,0 +1,5 @@
+===========
+NEW WORDS
+===========
+an alert for the system admin  about a potential new word
+once the admin has reviewed it, they can now add it to the taxonomy/****.json file that corresponds

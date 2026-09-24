@@ -1,0 +1,242 @@
+{
+  "generated_at": "2026-09-16T10:15:25.314587+00:00",
+  "source_a_transactions": 500,
+  "source_b_transactions": 500,
+  "matched_transactions_or_groups": 465,
+  "unmatched_source_a": 35,
+  "unmatched_source_b": 35,
+  "match_types": {
+    "FUZZY": 364,
+    "GATEWAY_FEE": 76,
+    "SPLIT_PAYMENT": 25
+  },
+  "match_rate_source_a_percent": 93.0,
+  "fx_rates_inferred": {},
+  "fee_profiles_learned": [
+    {
+      "fee_percent": 0.004791975291388251,
+      "median_fee": 3.9700000000000273,
+      "observations": 78,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.05004241627137347,
+      "median_fee": 48.309999999999945,
+      "observations": 64,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.1343918909626044,
+      "median_fee": 163.18999999999994,
+      "observations": 57,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.12734311022132544,
+      "median_fee": 143.19000000000005,
+      "observations": 48,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.11759774810945316,
+      "median_fee": 133.26999999999998,
+      "observations": 45,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.15347228483144687,
+      "median_fee": 187.8499999999999,
+      "observations": 43,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.10848782159447726,
+      "median_fee": 110.59000000000003,
+      "observations": 42,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.17184265010351968,
+      "median_fee": 192.24000000000012,
+      "observations": 41,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.16311534873392114,
+      "median_fee": 195.31499999999994,
+      "observations": 40,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.17967564374953854,
+      "median_fee": 215.49,
+      "observations": 38,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.19467722772277227,
+      "median_fee": 234.66999999999996,
+      "observations": 37,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.06846762925011644,
+      "median_fee": 82.47000000000003,
+      "observations": 37,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.08888807901162574,
+      "median_fee": 105.90500000000009,
+      "observations": 36,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.0596833031286563,
+      "median_fee": 63.125,
+      "observations": 36,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.03249436067909297,
+      "median_fee": 36.570000000000164,
+      "observations": 35,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.04152999999999997,
+      "median_fee": 41.53000000000003,
+      "observations": 34,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.02173480922431815,
+      "median_fee": 25.940000000000055,
+      "observations": 34,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.14523054523918225,
+      "median_fee": 165.3699999999999,
+      "observations": 29,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.0784444183528368,
+      "median_fee": 106.92999999999984,
+      "observations": 27,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.0960125111868452,
+      "median_fee": 96.51500000000004,
+      "observations": 26,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.013754020207034152,
+      "median_fee": 14.740000000000009,
+      "observations": 19,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.0004997501249375312,
+      "median_fee": 0.5,
+      "observations": 16,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.1014859539390434,
+      "median_fee": 114.07999999999993,
+      "observations": 10,
+      "confidence": 100.0
+    },
+    {
+      "fee_percent": 0.18744108947898727,
+      "median_fee": 164.64999999999998,
+      "observations": 9,
+      "confidence": 96.0
+    },
+    {
+      "fee_percent": 0.19977593726243353,
+      "median_fee": 249.6500000000001,
+      "observations": 6,
+      "confidence": 84.0
+    },
+    {
+      "fee_percent": 0.06401220528084323,
+      "median_fee": 68.40000000000009,
+      "observations": 5,
+      "confidence": 80.0
+    },
+    {
+      "fee_percent": 0.12279117061759177,
+      "median_fee": 137.9749999999999,
+      "observations": 4,
+      "confidence": 76.0
+    },
+    {
+      "fee_percent": 0.037086328252726314,
+      "median_fee": 64.65000000000009,
+      "observations": 2,
+      "confidence": 68.0
+    }
+  ],
+  "schema_detection": {
+    "source_a": [
+      {
+        "source": "ledger_transactions.csv | table=1",
+        "schema": {
+          "date": "date",
+          "amount": "amount",
+          "debit": "gl_account",
+          "credit": "description",
+          "balance": null,
+          "currency": "reference",
+          "reference": "transaction_id",
+          "description_columns": [
+            "transaction_type",
+            "posted_by"
+          ],
+          "confidence": {
+            "date": 100.0,
+            "amount": 100.0,
+            "debit": 68.24,
+            "credit": 87.0,
+            "balance": 0.0,
+            "currency": 58.82,
+            "reference": 100.0,
+            "description": 45.45
+          }
+        }
+      }
+    ],
+    "source_b": [
+      {
+        "source": "bank_statement.csv | table=1",
+        "schema": {
+          "date": "date",
+          "amount": "amount",
+          "debit": "reference",
+          "credit": "description",
+          "balance": null,
+          "currency": "reference",
+          "reference": "transaction_id",
+          "description_columns": [
+            "transaction_type"
+          ],
+          "confidence": {
+            "date": 100.0,
+            "amount": 100.0,
+            "debit": 70.0,
+            "credit": 91.0,
+            "balance": 0.0,
+            "currency": 58.82,
+            "reference": 100.0,
+            "description": 45.45
+          }
+        }
+      }
+    ]
+  }
+}

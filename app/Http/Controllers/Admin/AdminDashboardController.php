@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ReconciliationRun;
 use App\Services\Admin\AdminDasboardService;
 use Illuminate\Http\Request;
 
@@ -16,8 +17,9 @@ class AdminDashboardController extends Controller{
         ];
 
         $user_management = $this->userManagement($request);
+        $runs = $this->renderReconcilaitonRun();
 
-        return view('admin.dashboard', compact('metrics', 'user_management'));
+        return view('admin.dashboard', compact('metrics', 'user_management', 'runs'));
     }
 
     public function userManagement(Request $request){
@@ -25,5 +27,13 @@ class AdminDashboardController extends Controller{
         $user_management = new AdminDasboardService()->userManagement($admin_id);
 
         return $user_management;
+    }
+
+    public function renderReconcilaitonRun(){
+            $runs = ReconciliationRun::query()
+            ->latest()
+            ->paginate(5);
+            
+            return $runs;
     }
 }

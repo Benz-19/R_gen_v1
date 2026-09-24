@@ -3,16 +3,13 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\API\V1\Auth\EmployeeAccountVerificationAPIAuthController;
 use App\Http\Controllers\API\V1\Auth\RegisterAPIAuthController;
-use App\Http\Controllers\ReconciliationController;
+use App\Http\Controllers\Reconciliation\ReconciliationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
-
-Route::post('/v1/reconcile/match-demo', [ReconciliationController::class, 'match']);
-
 
 // VERSION 1
 Route::prefix('v1')->middleware(['web'])->group(function () {
@@ -23,5 +20,11 @@ Route::prefix('v1')->middleware(['web'])->group(function () {
     Route::post('/verify-employee-account', [EmployeeAccountVerificationAPIAuthController::class, 'verifyEmployee']);
     Route::post('/check-company', [RegisterAPIAuthController::class, 'checkCompany']);
     Route::post('/register', [RegisterAPIAuthController::class, 'registerAPI']);
-});
 
+    // RECONCILIATION PIPELINE
+    Route::prefix('reconciliation')->group(function () {
+        Route::post('/execute', [ReconciliationController::class, 'execute']);
+        Route::get('/results/{id}', [ReconciliationController::class, 'getResults']);
+        Route::get('/export/{id}/{type}', [ReconciliationController::class, 'exportFile']);
+    });
+});
