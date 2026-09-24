@@ -72,7 +72,7 @@
                     </div>
                 </div>
 
-                <x-admin.nav />
+                <x-admin.nav :total_unmatched_discrepancies="$total_unmatched_discrepancies" />
             </div>
 
             <div class="p-4 border-t border-neutral-800 flex items-center justify-between">
@@ -97,12 +97,6 @@
                     <p class="text-xs text-neutral-400 mt-1">Active Environment: <span class="text-white font-medium">{{ $metrics['active_workspace'] ?? 'Production Workspace' }}</span></p>
                 </div>
                 
-                <div class="flex space-x-3">
-                    <button class="w-full sm:w-auto justify-center px-4 py-2 bg-white text-black hover:bg-neutral-200 font-semibold rounded-lg text-xs transition-transform active:scale-95 duration-150 flex items-center space-x-2">
-                        <a href="/execute-recon-runs"><span>+ Run Reconciliation</span></a>
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </button>
-                </div>
             </header>
 
             <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">

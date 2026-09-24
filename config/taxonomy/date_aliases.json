@@ -1,5 +1,6 @@
 [
   "activity_date",
+  "assessment_charge",
   "auth_date",
   "authorization_date",
   "billing_date",
@@ -31,6 +32,7 @@
   "posting_date",
   "posting_timestamp",
   "processed_date",
+  "processing_charge",
   "processing_date",
   "record_date",
   "run_date",

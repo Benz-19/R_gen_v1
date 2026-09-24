@@ -8,17 +8,14 @@ use App\Http\Controllers\Auth\LogoutAuthController;
 use App\Http\Controllers\Auth\RegisterAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PagesController;
+use App\Http\Controllers\Reconciliation\UnmatchedDiscrepanciesController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureWorkspaceAccess;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/demo', function () {
-    return view('demo');
-});
+Route::get('/demo', function () { return view('demo'); });
 
-Route::get('/', function () {
-    return view('landing');
-});
+Route::get('/', function () { return view('landing'); });
 
 /*
 |--------------------------------------------------------------------------
@@ -26,25 +23,13 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/login', [
-    LoginAuthController::class,
-    'loginPage'
-])->name('login');
+Route::get('/login', [LoginAuthController::class, 'loginPage'])->name('login');
 
-Route::get('/register', [
-    RegisterAuthController::class,
-    'registerPage'
-]);
+Route::get('/register', [RegisterAuthController::class, 'registerPage']);
 
-Route::post('/logout', [
-    LogoutAuthController::class,
-    'logout'
-]);
+Route::post('/logout', [LogoutAuthController::class, 'logout']);
 
-Route::post('/process-login', [
-    LoginAuthController::class,
-    'login'
-]);
+Route::post('/process-login', [LoginAuthController::class, 'login']);
 
 /*
 |--------------------------------------------------------------------------
@@ -52,20 +37,11 @@ Route::post('/process-login', [
 |--------------------------------------------------------------------------
 */
 
-Route::get('/help-center', [
-    PagesController::class,
-    'help_center'
-]);
+Route::get('/help-center', [PagesController::class, 'help_center']);
 
-Route::get('/system-status', [
-    PagesController::class,
-    'system_status'
-]);
+Route::get('/system-status', [PagesController::class, 'system_status']);
 
-Route::get('/privacy', [
-    PagesController::class,
-    'privacy'
-]);
+Route::get('/privacy', [PagesController::class, 'privacy']);
 
 /*
 |--------------------------------------------------------------------------
@@ -73,24 +49,13 @@ Route::get('/privacy', [
 |--------------------------------------------------------------------------
 */
 
-Route::middleware([
-    EnsureUserIsAdmin::class
-])->group(function () {
+Route::middleware([EnsureUserIsAdmin::class])->group(function () {
 
-    Route::get('/team-members', [
-        TeamMemberController::class,
-        'index'
-    ]);
+    Route::get('/team-members', [TeamMemberController::class, 'index']);
 
-    Route::get('/execute-recon-runs', [
-        AdminReconciliationController::class,
-        'index'
-    ])->name('admin.reconciliation-runs');
+    Route::get('/execute-recon-runs', [AdminReconciliationController::class, 'index'])->name('admin.reconciliation-runs');
 
-    Route::get('/trigger-run', [
-        AdminReconciliationController::class,
-        'trigger_run'
-    ])->name('admin.trigger-run');
+    Route::get('/trigger-run', [AdminReconciliationController::class, 'trigger_run'])->name('admin.trigger-run');
 });
 
 /*
@@ -99,31 +64,24 @@ Route::middleware([
 |--------------------------------------------------------------------------
 */
 
-Route::middleware([
-    'auth',
-    EnsureWorkspaceAccess::class
-])->group(function () {
+Route::middleware(['auth', EnsureWorkspaceAccess::class])->group(function () {
 
-    Route::get('/dashboard', [
-        DashboardController::class,
-        'index'
-    ])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     /*
      * Reconciliation index
      */
-    Route::get('/reconciliation-runs', [
-        ReconciliationController::class,
-        'index'
-    ])->name('reconciliation-runs.index');
+    Route::get('/reconciliation-runs', [ReconciliationController::class, 'index'])->name('reconciliation-runs.index');
+
+    /*
+     * Reconciliation index
+     */
+    Route::get('/unmatched-discrepancies', [UnmatchedDiscrepanciesController::class, 'index'])->name('unmatched.discrepancies.index');
 
     /*
      * Start reconciliation
      */
-    Route::post('/reconciliation-runs/execute', [
-        ReconciliationController::class,
-        'execute'
-    ])->name('reconciliation.runs.execute');
+    Route::post('/reconciliation-runs/execute', [ReconciliationController::class, 'execute'])->name('reconciliation.runs.execute');
 
     /*
      * IMPORTANT:
@@ -133,20 +91,11 @@ Route::middleware([
      *
      * ReconciliationRun $run
      */
-    Route::get('/reconciliation-runs/{run}/status', [
-        ReconciliationController::class,
-        'checkStatus'
-    ])->name('reconciliation.runs.status');
+    Route::get('/reconciliation-runs/{run}/status', [ReconciliationController::class, 'checkStatus'])->name('reconciliation.runs.status');
 
-    Route::get('/reconciliation-runs/{run}/results', [
-        ReconciliationController::class,
-        'getResults'
-    ])->name('reconciliation.runs.results');
+    Route::get('/reconciliation-runs/{run}/results', [ReconciliationController::class, 'getResults'])->name('reconciliation.runs.results');
 
-    Route::get('/reconciliation-runs/{run}/export/{type}', [
-        ReconciliationController::class,
-        'exportFile'
-    ])->name('reconciliation.runs.export');
+    Route::get('/reconciliation-runs/{run}/export/{type}', [ReconciliationController::class, 'exportFile'])->name('reconciliation.runs.export');
 });
 
 

@@ -13,16 +13,28 @@ use Illuminate\Support\Str;
 
 class ReconciliationController extends Controller
 {
+
+    private function getReconciliationTotalExceptions(){
+        $runs = ReconciliationRun::query()->latest()->paginate(20);
+        $exceptions = 0;
+        foreach($runs as $run){
+            if(!empty($run->total_exceptions) && $run->total_exceptions >0){
+                $exceptions+=1;
+            }
+        }
+
+        return $exceptions;
+    }
+
     public function index()
     {
         $runs = ReconciliationRun::query()
             ->latest()
             ->paginate(20);
 
-        return view(
-            'admin.reconciliation-runs',
-            compact('runs')
-        );
+        $total_unmatched_discrepancies = $this->getReconciliationTotalExceptions();    
+
+        return view('admin.reconciliation-runs',compact('runs', 'total_unmatched_discrepancies'));
     }
 
     public function create()

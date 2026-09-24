@@ -74,7 +74,7 @@
                     </div>
                 </div>
 
-                <x-admin.nav />
+                <x-admin.nav :total_unmatched_discrepancies="$total_unmatched_discrepancies" />
             </div>
 
             <div class="p-4 border-t border-neutral-800 flex items-center justify-between">

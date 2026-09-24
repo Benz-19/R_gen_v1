@@ -27,6 +27,7 @@
   "order_number",
   "pay_id",
   "payment_id",
+  "provider_record",
   "receipt_id",
   "receipt_no",
   "ref",
