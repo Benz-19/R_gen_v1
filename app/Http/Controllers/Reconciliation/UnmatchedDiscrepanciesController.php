@@ -7,12 +7,21 @@ use Illuminate\Http\Request;
 
 class UnmatchedDiscrepanciesController extends Controller{
 
-    public function index(Request $request){
-        $runs = ReconciliationRun::query()->latest()->paginate(20);
+    public function index(Request $request)
+    {
+        $user_id = $request->session()->get('user_id');
+
+        $runs = ReconciliationRun::query()
+            ->where('executed_by', $user_id)
+            ->latest()
+            ->paginate(20);
 
         $total_unmatched_discrepancies = $this->totalExceptions($runs);
 
-        return view('admin.unmatched_discrepancies', compact('runs', 'total_unmatched_discrepancies'));
+        return view(
+            'admin.unmatched_discrepancies',
+            compact('runs', 'total_unmatched_discrepancies')
+        );
     }
 
     private function totalExceptions($runs){

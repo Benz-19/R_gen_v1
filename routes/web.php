@@ -53,6 +53,26 @@ Route::middleware([EnsureUserIsAdmin::class])->group(function () {
 
     Route::get('/team-members', [TeamMemberController::class, 'index']);
 
+    /*
+     * Team member management
+     *
+     * These routes are intentionally inside the admin middleware group
+     * because only administrators should be able to modify team accounts.
+     */
+    Route::prefix('/admin/users')->name('admin.users.')->group(function () {
+
+        Route::put('/{user}', [TeamMemberController::class, 'update'])->name('update');
+
+        Route::post('/{user}/activate', [TeamMemberController::class, 'activate'])->name('activate');
+
+        Route::post('/{user}/deactivate', [TeamMemberController::class, 'deactivate'])->name('deactivate');
+
+        Route::post('/{user}/password-reset', [TeamMemberController::class, 'passwordReset'])->name('password-reset');
+
+        Route::delete('/{user}', [TeamMemberController::class, 'destroy'])->name('destroy');
+
+    });
+
     Route::get('/execute-recon-runs', [AdminReconciliationController::class, 'index'])->name('admin.reconciliation-runs');
 
     Route::get('/trigger-run', [AdminReconciliationController::class, 'trigger_run'])->name('admin.trigger-run');
