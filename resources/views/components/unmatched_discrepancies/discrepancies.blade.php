@@ -1,0 +1,2459 @@
+@props([
+    'total_unmatched_discrepancies',
+    'runs',
+])
+<!-- =====================================================
+        MAIN CONTENT
+====================================================== -->
+
+<main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+
+    <header
+        class="animate-reveal flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 md:mb-8 pb-4 border-b border-neutral-800"
+    >
+
+        <div>
+
+            <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                Unmatched Discrepancies
+            </h1>
+
+            <p class="text-xs text-neutral-400 mt-1">
+                List of unmatched discrepancies matching the engine history.
+            </p>
+
+            <div class="animate-reveal delay-1 bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm hover:border-neutral-700 transition-colors">
+                <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Total Unmatched Analysis</p>
+                <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $total_unmatched_discrepancies }}</p>
+            </div>
+        </div>
+
+    </header>
+
+
+    <section
+        class="animate-reveal delay-1 bg-black/40 border border-neutral-800 rounded-xl p-4 sm:p-6 backdrop-blur-sm"
+    >
+
+        <div class="overflow-x-auto">
+
+            <table class="w-full text-left text-xs min-w-[500px]">
+
+                <thead
+                    class="bg-neutral-900/60 text-neutral-400 uppercase tracking-wider font-mono border-b border-neutral-800"
+                >
+
+                    <tr>
+
+                        <th class="p-3">
+                            Run ID
+                        </th>
+
+                        <th class="p-3">
+                            Source Dataset(s)
+                        </th>
+
+                        <th class="p-3">
+                            Status
+                        </th>
+
+                        <th class="p-3">
+                            Execution Speed
+                        </th>
+
+                        <th class="p-3 text-right">
+                            Actions
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody class="divide-y divide-neutral-800 text-neutral-300">
+
+                    @forelse($runs as $run)
+
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+
+                            <td class="p-3 font-medium text-white font-mono">
+                                #RUN-{{ $run->id }}
+                            </td>
+
+
+                            @if(
+                                !empty($run->source_a_filename) ||
+                                !empty($run->source_b_filename)
+                            )
+
+                                <td class="p-3">
+
+                                    (a.) {{ $run->source_a_filename }}
+
+                                    <br>
+
+                                    (b.) {{ $run->source_b_filename }}
+
+                                </td>
+
+                            @else
+
+                                <td class="p-3"></td>
+
+                            @endif
+
+
+                            <td
+                                class="p-3 font-medium {{
+                                    strtolower($run->status) === 'completed'
+                                        ? 'text-emerald-400'
+                                        : 'text-amber-400'
+                                }}"
+                            >
+                                {{ $run->status }}
+                            </td>
+
+
+                            <td class="p-3 font-mono">
+                                {{ $run->execution_speed }}ms
+                            </td>
+
+
+                            <td class="p-3 text-right">
+
+                                <button
+                                    type="button"
+                                    class="view-log-button text-neutral-400 hover:text-white transition-colors"
+                                    data-run-id="{{ $run->id }}"
+                                    data-run-identifier="{{ $run->run_identifier }}"
+                                    data-status="{{ $run->status }}"
+                                    data-source-a="{{ $run->source_a_filename }}"
+                                    data-source-b="{{ $run->source_b_filename }}"
+                                    data-execution-speed="{{ $run->execution_speed }}"
+                                    data-created-at="{{ optional($run->created_at)->format('Y-m-d H:i:s') }}"
+                                    data-updated-at="{{ optional($run->updated_at)->format('Y-m-d H:i:s') }}"
+                                >
+                                    View Log
+                                </button>
+
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+
+                            <td
+                                colspan="5"
+                                class="p-4 text-center text-neutral-500 font-mono"
+                            >
+                                No processing runs recorded yet.
+                            </td>
+
+                        </tr>
+
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+
+    <!-- =========================================================
+         VIEW LOG MODAL
+    ========================================================= -->
+
+    <div
+        id="run-log-overlay"
+        class="run-log-overlay fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+    >
+
+        <div
+            id="run-log-modal"
+            class="run-log-modal w-full max-w-2xl max-h-[90vh] bg-[#171717] border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden"
+        >
+
+            <!-- Modal Header -->
+
+            <div class="px-5 sm:px-7 pt-6 sm:pt-7">
+
+                <div class="flex items-start justify-between gap-4">
+
+                    <div>
+
+                        <p class="text-[10px] uppercase tracking-[0.18em] text-neutral-500 font-mono mb-2">
+                            Reconciliation Run
+                        </p>
+
+                        <h2
+                            id="log-modal-title"
+                            class="text-xl sm:text-2xl font-bold text-white tracking-tight"
+                        >
+                            Run Log
+                        </h2>
+
+                    </div>
+
+
+                    <button
+                        id="close-run-log"
+                        type="button"
+                        class="w-9 h-9 rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors flex items-center justify-center shrink-0"
+                        aria-label="Close"
+                    >
+
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 6l12 12M18 6L6 18"
+                            />
+                        </svg>
+
+                    </button>
+
+                </div>
+
+
+                <!-- Status Banner -->
+
+                <div
+                    id="log-status-banner"
+                    class="mt-5 rounded-lg border border-emerald-900/80 bg-emerald-950/30 px-4 py-3 flex items-center gap-3"
+                >
+
+                    <div
+                        id="log-status-icon"
+                        class="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center shrink-0"
+                    >
+
+                        <svg
+                            class="w-4 h-4 text-emerald-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M5 13l4 4L19 7"
+                            />
+                        </svg>
+
+                    </div>
+
+
+                    <div>
+
+                        <p
+                            id="log-status-text"
+                            class="text-sm font-semibold text-emerald-400"
+                        >
+                            Reconciliation Completed Successfully
+                        </p>
+
+                        <p
+                            id="log-status-subtext"
+                            class="text-[11px] text-neutral-500 mt-0.5"
+                        >
+                            Run execution details
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Modal Body -->
+
+            <div class="run-log-scroll overflow-y-auto px-5 sm:px-7 py-5 max-h-[55vh]">
+
+                <!-- Metrics -->
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+                    <div class="bg-[#0d0d0d] border border-neutral-800 rounded-xl p-4">
+
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
+                            Run ID
+                        </p>
+
+                        <p
+                            id="log-run-id"
+                            class="text-lg font-bold text-white mt-2 font-mono"
+                        >
+                            —
+                        </p>
+
+                    </div>
+
+
+                    <div class="bg-[#0d0d0d] border border-neutral-800 rounded-xl p-4">
+
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
+                            Execution
+                        </p>
+
+                        <p
+                            id="log-execution-speed"
+                            class="text-lg font-bold text-white mt-2 font-mono"
+                        >
+                            —
+                        </p>
+
+                    </div>
+
+
+                    <div class="bg-[#0d0d0d] border border-neutral-800 rounded-xl p-4">
+
+                        <p class="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
+                            Status
+                        </p>
+
+                        <p
+                            id="log-status-value"
+                            class="text-lg font-bold text-white mt-2"
+                        >
+                            —
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Dataset Information -->
+
+                <div class="mt-4 bg-[#0d0d0d] border border-neutral-800 rounded-xl overflow-hidden">
+
+                    <div class="px-4 py-3 border-b border-neutral-800">
+
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-neutral-500 font-mono">
+                            Source Dataset(s)
+                        </p>
+
+                    </div>
+
+
+                    <div class="divide-y divide-neutral-800">
+
+                        <div class="px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+                            <div class="flex items-center gap-3">
+
+                                <div class="w-7 h-7 rounded-md bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+
+                                    <span class="text-[10px] font-bold text-neutral-400">
+                                        A
+                                    </span>
+
+                                </div>
+
+
+                                <div>
+
+                                    <p class="text-[10px] uppercase text-neutral-600 font-mono">
+                                        Source A
+                                    </p>
+
+                                    <p
+                                        id="log-source-a"
+                                        class="text-sm text-neutral-200 break-all"
+                                    >
+                                        —
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+
+                            <div class="flex items-center gap-3">
+
+                                <div class="w-7 h-7 rounded-md bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+
+                                    <span class="text-[10px] font-bold text-neutral-400">
+                                        B
+                                    </span>
+
+                                </div>
+
+
+                                <div>
+
+                                    <p class="text-[10px] uppercase text-neutral-600 font-mono">
+                                        Source B
+                                    </p>
+
+                                    <p
+                                        id="log-source-b"
+                                        class="text-sm text-neutral-200 break-all"
+                                    >
+                                        —
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Run Information -->
+
+                <div class="mt-4 bg-[#0d0d0d] border border-neutral-800 rounded-xl overflow-hidden">
+
+                    <div class="px-4 py-3 border-b border-neutral-800">
+
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-neutral-500 font-mono">
+                            Run Information
+                        </p>
+
+                    </div>
+
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-neutral-800">
+
+                        <div class="p-4">
+
+                            <p class="text-[10px] uppercase text-neutral-600 font-mono">
+                                Run Identifier
+                            </p>
+
+                            <p
+                                id="log-run-identifier"
+                                class="text-sm text-neutral-200 mt-1 break-all font-mono"
+                            >
+                                —
+                            </p>
+
+                        </div>
+
+
+                        <div class="p-4">
+
+                            <p class="text-[10px] uppercase text-neutral-600 font-mono">
+                                Created
+                            </p>
+
+                            <p
+                                id="log-created-at"
+                                class="text-sm text-neutral-200 mt-1 font-mono"
+                            >
+                                —
+                            </p>
+
+                        </div>
+
+
+                        <div class="p-4 sm:border-t sm:border-neutral-800">
+
+                            <p class="text-[10px] uppercase text-neutral-600 font-mono">
+                                Last Updated
+                            </p>
+
+                            <p
+                                id="log-updated-at"
+                                class="text-sm text-neutral-200 mt-1 font-mono"
+                            >
+                                —
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =====================================================
+                 MODAL ACTIONS
+            ====================================================== -->
+
+            <div class="px-5 sm:px-7 py-4 border-t border-neutral-800 bg-[#141414]">
+
+                <!-- Export Unmatched -->
+
+                <button
+                    id="export-unmatched-button"
+                    type="button"
+                    class="group w-full px-4 py-3 bg-white hover:bg-neutral-200 text-black font-semibold rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                >
+
+                    <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M4 7h16M4 12h16M4 17h10"
+                        />
+                    </svg>
+
+                    <span>
+                        Export Unmatched
+                    </span>
+
+                </button>
+
+
+                <!-- Close -->
+
+                <button
+                    id="close-run-log-footer"
+                    type="button"
+                    class="w-full mt-3 px-4 py-3 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white font-semibold rounded-lg text-sm transition-colors border border-neutral-800"
+                >
+                    Close
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        /* =========================================================
+           SIDEBAR
+        ========================================================= */
+
+        const menuToggle =
+            document.getElementById('menu-toggle');
+
+        const sidebar =
+            document.getElementById('sidebar');
+
+        const overlay =
+            document.getElementById('sidebar-overlay');
+
+
+        function toggleSidebar() {
+
+            sidebar.classList.toggle(
+                '-translate-x-full'
+            );
+
+            overlay.classList.toggle(
+                'hidden'
+            );
+
+        }
+
+
+        menuToggle.addEventListener(
+            'click',
+            toggleSidebar
+        );
+
+
+        overlay.addEventListener(
+            'click',
+            toggleSidebar
+        );
+
+
+        /* =========================================================
+           VIEW LOG MODAL
+        ========================================================= */
+
+        const runLogOverlay =
+            document.getElementById(
+                'run-log-overlay'
+            );
+
+
+        const closeRunLog =
+            document.getElementById(
+                'close-run-log'
+            );
+
+
+        const closeRunLogFooter =
+            document.getElementById(
+                'close-run-log-footer'
+            );
+
+
+        const logModalTitle =
+            document.getElementById(
+                'log-modal-title'
+            );
+
+
+        const logStatusBanner =
+            document.getElementById(
+                'log-status-banner'
+            );
+
+
+        const logStatusIcon =
+            document.getElementById(
+                'log-status-icon'
+            );
+
+
+        const logStatusText =
+            document.getElementById(
+                'log-status-text'
+            );
+
+
+        const logStatusSubtext =
+            document.getElementById(
+                'log-status-subtext'
+            );
+
+
+        const logRunId =
+            document.getElementById(
+                'log-run-id'
+            );
+
+
+        const logExecutionSpeed =
+            document.getElementById(
+                'log-execution-speed'
+            );
+
+
+        const logStatusValue =
+            document.getElementById(
+                'log-status-value'
+            );
+
+
+        const logSourceA =
+            document.getElementById(
+                'log-source-a'
+            );
+
+
+        const logSourceB =
+            document.getElementById(
+                'log-source-b'
+            );
+
+
+        const logRunIdentifier =
+            document.getElementById(
+                'log-run-identifier'
+            );
+
+
+        const logCreatedAt =
+            document.getElementById(
+                'log-created-at'
+            );
+
+
+        const logUpdatedAt =
+            document.getElementById(
+                'log-updated-at'
+            );
+
+
+        const exportUnmatchedButton =
+            document.getElementById(
+                'export-unmatched-button'
+            );
+
+
+        /*
+         * Keeps track of whichever run is currently open.
+         */
+        let activeRunId = null;
+
+
+        /* =========================================================
+           RESET MODAL
+        ========================================================= */
+
+        function resetRunLogModal() {
+
+            activeRunId = null;
+
+
+            logModalTitle.textContent =
+                'Run Log';
+
+
+            logRunId.textContent =
+                '—';
+
+
+            logExecutionSpeed.textContent =
+                '—';
+
+
+            logStatusValue.textContent =
+                '—';
+
+
+            logSourceA.textContent =
+                '—';
+
+
+            logSourceB.textContent =
+                '—';
+
+
+            logRunIdentifier.textContent =
+                '—';
+
+
+            logCreatedAt.textContent =
+                '—';
+
+
+            logUpdatedAt.textContent =
+                '—';
+
+
+            logStatusText.textContent =
+                'Reconciliation Run';
+
+
+            logStatusSubtext.textContent =
+                'Run execution details';
+
+
+            logStatusBanner.className =
+                'mt-5 rounded-lg border border-neutral-800 bg-neutral-900/40 px-4 py-3 flex items-center gap-3';
+
+
+            logStatusIcon.className =
+                'w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center shrink-0';
+
+
+            logStatusIcon.innerHTML = `
+                <svg
+                    class="w-4 h-4 text-neutral-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M12 19a7 7 0 100-14 7 7 0 000 14z"
+                    />
+                </svg>
+            `;
+
+        }
+
+
+        /* =========================================================
+           STATUS
+        ========================================================= */
+
+        function setRunStatus(status) {
+
+            const normalizedStatus =
+                String(status || '')
+                    .trim()
+                    .toLowerCase();
+
+
+            const isCompleted =
+                normalizedStatus === 'completed' ||
+                normalizedStatus === 'complete' ||
+                normalizedStatus === 'success' ||
+                normalizedStatus === 'successful';
+
+
+            const isFailed =
+                normalizedStatus === 'failed' ||
+                normalizedStatus === 'error';
+
+
+            const isProcessing =
+                normalizedStatus === 'processing' ||
+                normalizedStatus === 'running';
+
+
+            if (isCompleted) {
+
+                logStatusBanner.className =
+                    'mt-5 rounded-lg border border-emerald-900/80 bg-emerald-950/30 px-4 py-3 flex items-center gap-3';
+
+
+                logStatusIcon.className =
+                    'w-8 h-8 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center shrink-0';
+
+
+                logStatusIcon.innerHTML = `
+                    <svg
+                        class="w-4 h-4 text-emerald-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                        />
+                    </svg>
+                `;
+
+
+                logStatusText.className =
+                    'text-sm font-semibold text-emerald-400';
+
+
+                logStatusText.textContent =
+                    'Reconciliation Completed Successfully';
+
+
+                logStatusSubtext.textContent =
+                    'The reconciliation run finished successfully.';
+
+
+                logStatusValue.className =
+                    'text-lg font-bold text-emerald-400 mt-2';
+
+
+            } else if (isFailed) {
+
+                logStatusBanner.className =
+                    'mt-5 rounded-lg border border-red-900/80 bg-red-950/30 px-4 py-3 flex items-center gap-3';
+
+
+                logStatusIcon.className =
+                    'w-8 h-8 rounded-full bg-red-950 border border-red-800 flex items-center justify-center shrink-0';
+
+
+                logStatusIcon.innerHTML = `
+                    <svg
+                        class="w-4 h-4 text-red-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                `;
+
+
+                logStatusText.className =
+                    'text-sm font-semibold text-red-400';
+
+
+                logStatusText.textContent =
+                    'Reconciliation Run Failed';
+
+
+                logStatusSubtext.textContent =
+                    'The reconciliation process did not complete successfully.';
+
+
+                logStatusValue.className =
+                    'text-lg font-bold text-red-400 mt-2';
+
+
+            } else if (isProcessing) {
+
+                logStatusBanner.className =
+                    'mt-5 rounded-lg border border-amber-900/80 bg-amber-950/30 px-4 py-3 flex items-center gap-3';
+
+
+                logStatusIcon.className =
+                    'w-8 h-8 rounded-full bg-amber-950 border border-amber-800 flex items-center justify-center shrink-0';
+
+
+                logStatusIcon.innerHTML = `
+                    <svg
+                        class="w-4 h-4 text-amber-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 8v4l3 3"
+                        />
+
+                        <circle
+                            cx="12"
+                            cy="12"
+                            r="9"
+                        />
+                    </svg>
+                `;
+
+
+                logStatusText.className =
+                    'text-sm font-semibold text-amber-400';
+
+
+                logStatusText.textContent =
+                    'Reconciliation Run Processing';
+
+
+                logStatusSubtext.textContent =
+                    'The reconciliation process is currently running.';
+
+
+                logStatusValue.className =
+                    'text-lg font-bold text-amber-400 mt-2';
+
+
+            } else {
+
+                logStatusBanner.className =
+                    'mt-5 rounded-lg border border-neutral-800 bg-neutral-900/40 px-4 py-3 flex items-center gap-3';
+
+
+                logStatusText.className =
+                    'text-sm font-semibold text-neutral-300';
+
+
+                logStatusText.textContent =
+                    'Reconciliation Run';
+
+
+                logStatusSubtext.textContent =
+                    'Run execution details.';
+
+
+                logStatusValue.className =
+                    'text-lg font-bold text-white mt-2';
+
+            }
+
+
+            logStatusValue.textContent =
+                status || 'Unknown';
+
+        }
+
+
+        /* =========================================================
+           OPEN RUN LOG
+        ========================================================= */
+
+        function openRunLog(button) {
+
+            resetRunLogModal();
+
+
+            const runId =
+                button.dataset.runId || '';
+
+
+            const runIdentifier =
+                button.dataset.runIdentifier || '';
+
+
+            const status =
+                button.dataset.status || 'Unknown';
+
+
+            const sourceA =
+                button.dataset.sourceA ||
+                'Not available';
+
+
+            const sourceB =
+                button.dataset.sourceB ||
+                'Not available';
+
+
+            const executionSpeed =
+                button.dataset.executionSpeed || '—';
+
+
+            const createdAt =
+                button.dataset.createdAt || '—';
+
+
+            const updatedAt =
+                button.dataset.updatedAt || '—';
+
+
+            /*
+             * Remember the selected run.
+             *
+             * Export Unmatched uses this ID to retrieve
+             * the already stored reconciliation results.
+             */
+            activeRunId = runId;
+
+
+            logModalTitle.textContent =
+                `Run #RUN-${runId}`;
+
+
+            logRunId.textContent =
+                `#RUN-${runId}`;
+
+
+            logExecutionSpeed.textContent =
+                executionSpeed
+                    ? `${executionSpeed}ms`
+                    : '—';
+
+
+            logSourceA.textContent =
+                sourceA;
+
+
+            logSourceB.textContent =
+                sourceB;
+
+
+            logRunIdentifier.textContent =
+                runIdentifier || '—';
+
+
+            logCreatedAt.textContent =
+                createdAt || '—';
+
+
+            logUpdatedAt.textContent =
+                updatedAt || '—';
+
+
+            setRunStatus(status);
+
+
+            /*
+             * Only completed runs have stored reconciliation
+             * results available for export.
+             */
+            const normalizedStatus =
+                String(status || '')
+                    .trim()
+                    .toLowerCase();
+
+
+            const canExport =
+                normalizedStatus === 'completed' ||
+                normalizedStatus === 'complete' ||
+                normalizedStatus === 'success' ||
+                normalizedStatus === 'successful';
+
+
+            exportUnmatchedButton.disabled =
+                !canExport;
+
+
+            if (canExport) {
+
+                exportUnmatchedButton.classList.remove(
+                    'opacity-40',
+                    'cursor-not-allowed'
+                );
+
+            } else {
+
+                exportUnmatchedButton.classList.add(
+                    'opacity-40',
+                    'cursor-not-allowed'
+                );
+
+            }
+
+
+            runLogOverlay.classList.add(
+                'active'
+            );
+
+
+            document.body.classList.add(
+                'overflow-hidden'
+            );
+
+        }
+
+
+        /* =========================================================
+           CLOSE MODAL
+        ========================================================= */
+
+        function closeRunLogModal() {
+
+            runLogOverlay.classList.remove(
+                'active'
+            );
+
+
+            document.body.classList.remove(
+                'overflow-hidden'
+            );
+
+        }
+
+
+        /* =========================================================
+           FETCH EXISTING RESULTS
+        ========================================================= */
+
+        async function fetchRunResults(runId) {
+
+            if (!runId) {
+
+                throw new Error(
+                    'No reconciliation run selected.'
+                );
+
+            }
+
+
+            const response =
+                await fetch(
+                    `/reconciliation-runs/${runId}/results`,
+                    {
+                        method: 'GET',
+
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `Unable to retrieve results for run #${runId}.`
+                );
+
+            }
+
+
+            return await response.json();
+
+        }
+
+
+        /* =========================================================
+           REPORT HELPERS
+        ========================================================= */
+
+        function reportEscape(value) {
+
+            if (
+                value === null ||
+                value === undefined
+            ) {
+
+                return '';
+
+            }
+
+
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+        }
+
+
+        function reportFormatValue(value) {
+
+            if (
+                value === null ||
+                value === undefined ||
+                value === ''
+            ) {
+
+                return '—';
+
+            }
+
+
+            if (
+                typeof value === 'object'
+            ) {
+
+                try {
+
+                    return JSON.stringify(value);
+
+                } catch (error) {
+
+                    return String(value);
+
+                }
+
+            }
+
+
+            return String(value);
+
+        }
+
+
+        function reportLabel(value) {
+
+            return String(value)
+                .replace(/_/g, ' ')
+                .replace(/-/g, ' ')
+                .replace(
+                    /\b\w/g,
+                    character =>
+                        character.toUpperCase()
+                );
+
+        }
+
+
+        /* =========================================================
+           REPORT TABLE
+        ========================================================= */
+
+        function reportTable(rows) {
+
+            if (
+                !Array.isArray(rows) ||
+                rows.length === 0
+            ) {
+
+                return `
+                    <p style="
+                        color:#64748b;
+                        font-size:13px;
+                        margin:12px 0;
+                    ">
+                        No records available.
+                    </p>
+                `;
+
+            }
+
+
+            const columns = [
+                ...new Set(
+                    rows.flatMap(row =>
+                        row &&
+                        typeof row === 'object'
+                            ? Object.keys(row)
+                            : []
+                    )
+                )
+            ];
+
+
+            if (!columns.length) {
+
+                return `
+                    <p style="
+                        color:#64748b;
+                        font-size:13px;
+                        margin:12px 0;
+                    ">
+                        No structured records available.
+                    </p>
+                `;
+
+            }
+
+
+            let html = `
+                <table class="report-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                S/N
+                            </th>
+            `;
+
+
+            columns.forEach(column => {
+
+                html += `
+                    <th>
+                        ${reportEscape(
+                            reportLabel(column)
+                        )}
+                    </th>
+                `;
+
+            });
+
+
+            html += `
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+            `;
+
+
+            rows.forEach((row, index) => {
+
+                html += `
+                    <tr>
+
+                        <td>
+                            ${index + 1}
+                        </td>
+                `;
+
+
+                columns.forEach(column => {
+
+                    html += `
+                        <td>
+                            ${reportEscape(
+                                reportFormatValue(
+                                    row?.[column]
+                                )
+                            )}
+                        </td>
+                    `;
+
+                });
+
+
+                html += `
+                    </tr>
+                `;
+
+            });
+
+
+            html += `
+                    </tbody>
+
+                </table>
+            `;
+
+
+            return html;
+
+        }
+
+
+        /* =========================================================
+           REPORT METRIC
+        ========================================================= */
+
+        function reportMetric(label, value) {
+
+            return `
+                <div style="
+                    border:1px solid #e5e7eb;
+                    border-radius:10px;
+                    padding:16px;
+                    background:#ffffff;
+                ">
+
+                    <div style="
+                        font-size:11px;
+                        color:#64748b;
+                        text-transform:uppercase;
+                        letter-spacing:.08em;
+                        font-weight:700;
+                    ">
+                        ${reportEscape(label)}
+                    </div>
+
+
+                    <div style="
+                        font-size:22px;
+                        font-weight:800;
+                        color:#111827;
+                        margin-top:6px;
+                    ">
+                        ${reportEscape(value)}
+                    </div>
+
+                </div>
+            `;
+
+        }
+
+
+        /* =========================================================
+           CREATE REPORT WINDOW
+        ========================================================= */
+
+        function createReportWindow(
+            title,
+            subtitle,
+            bodyHtml,
+            existingWindow = null
+        ) {
+
+            const reportWindow =
+                existingWindow ||
+                window.open(
+                    '',
+                    '_blank',
+                    'width=1200,height=900'
+                );
+
+
+            if (!reportWindow) {
+
+                throw new Error(
+                    'The report window was blocked by the browser. Please allow pop-ups for this site.'
+                );
+
+            }
+
+
+            reportWindow.document.open();
+
+
+            reportWindow.document.write(`
+
+                <!DOCTYPE html>
+
+                <html lang="en">
+
+                <head>
+
+                    <meta charset="UTF-8">
+
+                    <meta
+                        name="viewport"
+                        content="width=device-width, initial-scale=1.0"
+                    >
+
+                    <title>
+                        ${reportEscape(title)}
+                    </title>
+
+
+                    <style>
+
+                        @page {
+                            size: A4;
+                            margin: 16mm;
+                        }
+
+
+                        * {
+                            box-sizing: border-box;
+                        }
+
+
+                        body {
+                            margin: 0;
+                            background: #f1f5f9;
+                            color: #111827;
+                            font-family:
+                                Arial,
+                                Helvetica,
+                                sans-serif;
+                        }
+
+
+                        .report-shell {
+                            max-width: 1100px;
+                            margin: 30px auto;
+                            background: white;
+                            border-radius: 14px;
+                            box-shadow:
+                                0 10px 35px
+                                rgba(15, 23, 42, .10);
+                            overflow: hidden;
+                        }
+
+
+                        .report-header {
+                            padding: 30px 34px;
+                            border-bottom: 1px solid #e5e7eb;
+                        }
+
+
+                        .brand {
+                            font-size: 11px;
+                            font-weight: 800;
+                            letter-spacing: .16em;
+                            text-transform: uppercase;
+                            color: #64748b;
+                        }
+
+
+                        h1 {
+                            margin: 7px 0 5px;
+                            font-size: 27px;
+                            line-height: 1.2;
+                        }
+
+
+                        .subtitle {
+                            color: #64748b;
+                            font-size: 13px;
+                        }
+
+
+                        .report-body {
+                            padding: 30px 34px;
+                        }
+
+
+                        .section {
+                            margin-top: 28px;
+                        }
+
+
+                        .section:first-child {
+                            margin-top: 0;
+                        }
+
+
+                        .section-title {
+                            font-size: 12px;
+                            font-weight: 800;
+                            text-transform: uppercase;
+                            letter-spacing: .10em;
+                            color: #475569;
+                            margin-bottom: 10px;
+                        }
+
+
+                        .metrics {
+                            display: grid;
+                            grid-template-columns:
+                                repeat(4, minmax(0, 1fr));
+                            gap: 12px;
+                        }
+
+
+                        .report-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-top: 10px;
+                        }
+
+
+                        .report-table th,
+                        .report-table td {
+                            border: 1px solid #e5e7eb;
+                            padding: 8px 10px;
+                            text-align: left;
+                            vertical-align: top;
+                            font-size: 11px;
+                        }
+
+
+                        .report-table th {
+                            background: #f8fafc;
+                            font-weight: 700;
+                            color: #334155;
+                        }
+
+
+                        .report-footer {
+                            padding: 20px 34px;
+                            border-top: 1px solid #e5e7eb;
+                            color: #94a3b8;
+                            font-size: 10px;
+                        }
+
+
+                        .report-actions {
+                            position: sticky;
+                            top: 0;
+                            z-index: 10;
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 8px;
+                            padding: 12px 16px;
+                            background: #0f172a;
+                        }
+
+
+                        .report-actions button {
+                            border: 0;
+                            border-radius: 7px;
+                            padding: 9px 14px;
+                            cursor: pointer;
+                            font-weight: 700;
+                            font-size: 12px;
+                        }
+
+
+                        .print-button {
+                            background: white;
+                            color: #111827;
+                        }
+
+
+                        .close-button {
+                            background: #334155;
+                            color: white;
+                        }
+
+
+                        @media (max-width: 700px) {
+
+                            .report-shell {
+                                margin: 0;
+                                border-radius: 0;
+                            }
+
+
+                            .metrics {
+                                grid-template-columns:
+                                    1fr 1fr;
+                            }
+
+                        }
+
+
+                        @media print {
+
+                            body {
+                                background: white;
+                            }
+
+
+                            .report-shell {
+                                margin: 0;
+                                max-width: none;
+                                box-shadow: none;
+                                border-radius: 0;
+                            }
+
+
+                            .report-actions {
+                                display: none;
+                            }
+
+
+                            .report-header,
+                            .report-body,
+                            .report-footer {
+                                padding-left: 0;
+                                padding-right: 0;
+                            }
+
+
+                            .report-table {
+                                page-break-inside: auto;
+                            }
+
+
+                            tr {
+                                page-break-inside: avoid;
+                                page-break-after: auto;
+                            }
+
+                        }
+
+                    </style>
+
+                </head>
+
+
+                <body>
+
+                    <div class="report-actions">
+
+                        <button
+                            class="print-button"
+                            onclick="window.print()"
+                        >
+                            Print / Save as PDF
+                        </button>
+
+
+                        <button
+                            class="close-button"
+                            onclick="window.close()"
+                        >
+                            Close
+                        </button>
+
+                    </div>
+
+
+                    <div class="report-shell">
+
+                        <div class="report-header">
+
+                            <div class="brand">
+                                ReconAgent
+                            </div>
+
+
+                            <h1>
+                                ${reportEscape(title)}
+                            </h1>
+
+
+                            <div class="subtitle">
+                                ${reportEscape(subtitle)}
+                            </div>
+
+                        </div>
+
+
+                        <div class="report-body">
+
+                            ${bodyHtml}
+
+                        </div>
+
+
+                        <div class="report-footer">
+
+                            Generated:
+                            ${reportEscape(
+                                new Date().toLocaleString()
+                            )}
+
+                        </div>
+
+                    </div>
+
+                </body>
+
+                </html>
+
+            `);
+
+
+            reportWindow.document.close();
+
+
+            return reportWindow;
+
+        }
+
+
+        /* =========================================================
+           EXPORT UNMATCHED
+        ========================================================= */
+
+        async function exportUnmatchedForRun() {
+
+            if (!activeRunId) {
+
+                alert(
+                    'No reconciliation run is currently selected.'
+                );
+
+                return;
+
+            }
+
+
+            let reportWindow = null;
+
+
+            try {
+
+                /*
+                 * Open immediately to avoid popup blockers.
+                 */
+                reportWindow =
+                    window.open(
+                        '',
+                        '_blank',
+                        'width=1200,height=900'
+                    );
+
+
+                if (!reportWindow) {
+
+                    throw new Error(
+                        'The report window was blocked by the browser. Please allow pop-ups for this site.'
+                    );
+
+                }
+
+
+                reportWindow.document.open();
+
+
+                reportWindow.document.write(`
+
+                    <!DOCTYPE html>
+
+                    <html lang="en">
+
+                    <head>
+
+                        <meta charset="UTF-8">
+
+                        <meta
+                            name="viewport"
+                            content="width=device-width, initial-scale=1.0"
+                        >
+
+                        <title>
+                            Preparing Unmatched Report...
+                        </title>
+
+
+                        <style>
+
+                            body {
+                                margin: 0;
+                                min-height: 100vh;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                background: #f1f5f9;
+                                color: #111827;
+                                font-family:
+                                    Arial,
+                                    Helvetica,
+                                    sans-serif;
+                            }
+
+
+                            .loading-card {
+                                background: white;
+                                border: 1px solid #e5e7eb;
+                                border-radius: 14px;
+                                padding: 32px;
+                                text-align: center;
+                                box-shadow:
+                                    0 10px 35px
+                                    rgba(15, 23, 42, .10);
+                            }
+
+
+                            .loading-title {
+                                font-size: 18px;
+                                font-weight: 800;
+                            }
+
+
+                            .loading-text {
+                                margin-top: 8px;
+                                color: #64748b;
+                                font-size: 13px;
+                            }
+
+                        </style>
+
+                    </head>
+
+
+                    <body>
+
+                        <div class="loading-card">
+
+                            <div class="loading-title">
+                                Preparing Unmatched Report
+                            </div>
+
+
+                            <div class="loading-text">
+                                Retrieving existing reconciliation results...
+                            </div>
+
+                        </div>
+
+                    </body>
+
+                    </html>
+
+                `);
+
+
+                reportWindow.document.close();
+
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * We retrieve the results that were already generated
+                 * for this reconciliation run.
+                 *
+                 * The reconciliation itself is NOT executed again.
+                 */
+                const resultData =
+                    await fetchRunResults(
+                        activeRunId
+                    );
+
+
+                /*
+                 * Source A unmatched records.
+                 */
+                const unmatchedA =
+                    Array.isArray(
+                        resultData?.unmatched_a
+                    )
+                        ? resultData.unmatched_a
+                        : [];
+
+
+                /*
+                 * Source B unmatched records.
+                 */
+                const unmatchedB =
+                    Array.isArray(
+                        resultData?.unmatched_b
+                    )
+                        ? resultData.unmatched_b
+                        : [];
+
+
+                /*
+                 * Existing summary information.
+                 */
+                const summary =
+                    resultData?.summary &&
+                    typeof resultData.summary === 'object'
+                        ? resultData.summary
+                        : {};
+
+
+                /*
+                 * Existing matched count.
+                 */
+                const matched =
+                    resultData?.matched_count ??
+                    resultData?.matched ??
+                    summary?.matched ??
+                    0;
+
+
+                /*
+                 * Existing match rate.
+                 */
+                let matchRate =
+                    resultData?.match_rate ??
+                    summary?.match_rate;
+
+
+                /*
+                 * Calculate a fallback match rate if the backend
+                 * did not provide one.
+                 */
+                if (
+                    (
+                        matchRate === undefined ||
+                        matchRate === null ||
+                        matchRate === ''
+                    ) &&
+                    Number(matched) >= 0
+                ) {
+
+                    const totalRecords =
+                        Number(matched) +
+                        unmatchedA.length +
+                        unmatchedB.length;
+
+
+                    if (totalRecords > 0) {
+
+                        matchRate =
+                            (
+                                Number(matched) /
+                                totalRecords *
+                                100
+                            ).toFixed(2);
+
+                    }
+
+                }
+
+
+                /*
+                 * Total unmatched records.
+                 */
+                const totalExceptions =
+                    unmatchedA.length +
+                    unmatchedB.length;
+
+
+                /* =================================================
+                   OPTIONAL SUMMARY INFORMATION
+                ================================================= */
+
+                let contextRows = '';
+
+
+                contextRows += `
+
+                    <tr>
+
+                        <td>
+                            1
+                        </td>
+
+                        <td>
+                            Run ID
+                        </td>
+
+                        <td>
+                            #RUN-${reportEscape(activeRunId)}
+                        </td>
+
+                    </tr>
+
+                `;
+
+
+                contextRows += `
+
+                    <tr>
+
+                        <td>
+                            2
+                        </td>
+
+                        <td>
+                            Matched Records
+                        </td>
+
+                        <td>
+                            ${reportEscape(matched)}
+                        </td>
+
+                    </tr>
+
+                `;
+
+
+                contextRows += `
+
+                    <tr>
+
+                        <td>
+                            3
+                        </td>
+
+                        <td>
+                            Source A Exceptions
+                        </td>
+
+                        <td>
+                            ${reportEscape(
+                                unmatchedA.length
+                            )}
+                        </td>
+
+                    </tr>
+
+                `;
+
+
+                contextRows += `
+
+                    <tr>
+
+                        <td>
+                            4
+                        </td>
+
+                        <td>
+                            Source B Exceptions
+                        </td>
+
+                        <td>
+                            ${reportEscape(
+                                unmatchedB.length
+                            )}
+                        </td>
+
+                    </tr>
+
+                `;
+
+
+                contextRows += `
+
+                    <tr>
+
+                        <td>
+                            5
+                        </td>
+
+                        <td>
+                            Total Exceptions
+                        </td>
+
+                        <td>
+                            ${reportEscape(
+                                totalExceptions
+                            )}
+                        </td>
+
+                    </tr>
+
+                `;
+
+
+                /*
+                 * Include scalar summary values when available.
+                 *
+                 * This does NOT execute reconciliation again.
+                 * It only displays information already stored
+                 * in the result payload.
+                 */
+                let additionalSummaryRows = '';
+
+
+                let summaryIndex = 5;
+
+
+                Object.entries(summary)
+                    .forEach(
+                        ([key, value]) => {
+
+                            if (
+                                Array.isArray(value) ||
+                                value === null ||
+                                typeof value === 'object'
+                            ) {
+                                return;
+                            }
+
+
+                            summaryIndex++;
+
+
+                            additionalSummaryRows += `
+
+                                <tr>
+
+                                    <td>
+                                        ${summaryIndex}
+                                    </td>
+
+                                    <td>
+                                        ${reportEscape(
+                                            reportLabel(key)
+                                        )}
+                                    </td>
+
+                                    <td>
+                                        ${reportEscape(
+                                            reportFormatValue(value)
+                                        )}
+                                    </td>
+
+                                </tr>
+
+                            `;
+
+                        }
+                    );
+
+
+                /*
+                 * Build the complete unmatched report.
+                 */
+                const bodyHtml = `
+
+                    <!-- =========================================
+                         EXCEPTION OVERVIEW
+                    ========================================== -->
+
+                    <div class="section">
+
+                        <div class="section-title">
+                            Exception Overview
+                        </div>
+
+
+                        <div class="metrics">
+
+                            ${reportMetric(
+                                'Source A Unmatched',
+                                unmatchedA.length
+                            )}
+
+
+                            ${reportMetric(
+                                'Source B Unmatched',
+                                unmatchedB.length
+                            )}
+
+
+                            ${reportMetric(
+                                'Total Exceptions',
+                                totalExceptions
+                            )}
+
+
+                            ${reportMetric(
+                                'Match Rate',
+                                matchRate !== undefined &&
+                                matchRate !== null &&
+                                matchRate !== ''
+                                    ? `${matchRate}%`
+                                    : '—'
+                            )}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         RECONCILIATION CONTEXT
+                    ========================================== -->
+
+                    <div class="section">
+
+                        <div class="section-title">
+                            Reconciliation Context
+                        </div>
+
+
+                        <table class="report-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>
+                                        S/N
+                                    </th>
+
+                                    <th>
+                                        Field
+                                    </th>
+
+                                    <th>
+                                        Value
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+                                ${contextRows}
+
+                                ${additionalSummaryRows}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+
+                    <!-- =========================================
+                         SOURCE A
+                    ========================================== -->
+
+                    <div class="section">
+
+                        <div class="section-title">
+                            Source A — Unmatched Records
+                        </div>
+
+
+                        ${reportTable(
+                            unmatchedA
+                        )}
+
+                    </div>
+
+
+                    <!-- =========================================
+                         SOURCE B
+                    ========================================== -->
+
+                    <div class="section">
+
+                        <div class="section-title">
+                            Source B — Unmatched Records
+                        </div>
+
+
+                        ${reportTable(
+                            unmatchedB
+                        )}
+
+                    </div>
+
+                `;
+
+
+                /*
+                 * Replace the loading page with the final report.
+                 */
+                reportWindow =
+                    createReportWindow(
+                        'Unmatched Transactions Report',
+                        `Run #RUN-${activeRunId}`,
+                        bodyHtml,
+                        reportWindow
+                    );
+
+            } catch (error) {
+
+                if (reportWindow) {
+
+                    reportWindow.close();
+
+                }
+
+
+                alert(
+                    error.message ||
+                    'Unable to generate the unmatched transactions report.'
+                );
+
+            }
+
+        }
+
+
+        /* =========================================================
+           VIEW LOG BUTTONS
+        ========================================================= */
+
+        document
+            .querySelectorAll(
+                '.view-log-button'
+            )
+            .forEach(button => {
+
+                button.addEventListener(
+                    'click',
+                    () => {
+
+                        openRunLog(button);
+
+                    }
+                );
+
+            });
+
+
+        /* =========================================================
+           EXPORT UNMATCHED BUTTON
+        ========================================================= */
+
+        exportUnmatchedButton.addEventListener(
+            'click',
+            () => {
+
+                if (
+                    exportUnmatchedButton.disabled
+                ) {
+
+                    return;
+
+                }
+
+
+                exportUnmatchedForRun();
+
+            }
+        );
+
+
+        /* =========================================================
+           CLOSE MODAL
+        ========================================================= */
+
+        closeRunLog.addEventListener(
+            'click',
+            closeRunLogModal
+        );
+
+
+        closeRunLogFooter.addEventListener(
+            'click',
+            closeRunLogModal
+        );
+
+
+        /* =========================================================
+           CLICK OUTSIDE MODAL
+        ========================================================= */
+
+        runLogOverlay.addEventListener(
+            'click',
+            function (event) {
+
+                if (
+                    event.target ===
+                    runLogOverlay
+                ) {
+
+                    closeRunLogModal();
+
+                }
+
+            }
+        );
+
+
+        /* =========================================================
+           ESCAPE KEY
+        ========================================================= */
+
+        document.addEventListener(
+            'keydown',
+            function (event) {
+
+                if (
+                    event.key === 'Escape' &&
+                    runLogOverlay.classList.contains(
+                        'active'
+                    )
+                ) {
+
+                    closeRunLogModal();
+
+                }
+
+            }
+        );
+
+    </script>
