@@ -38,6 +38,7 @@
   "reference_number",
   "rrn",
   "settlement_id",
+  "statement_no",
   "statement_reference",
   "trace_number",
   "tracking_number",

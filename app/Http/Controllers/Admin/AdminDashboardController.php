@@ -16,18 +16,24 @@ class AdminDashboardController extends Controller{
             ->count();
     }
 
+    private function getTotalReconciled($user_id){
+        return ReconciliationRun::query()->where('executed_by', $user_id)->count();
+    }
+
     public function index(Request $request){
+
+        $user_id = $request->session()->get('user_id');
+
         $metrics = [
             'total_users' => count($this->userManagement($request)),
             'active_workspace' => 'default organization',
-            'pending_exceptions' => 0,
-            'total_reconciled' => 20,
+            'pending_exceptions' => $this->getReconciliationTotalExceptions($user_id) ?? 0,
+            'total_reconciled' => $this->getTotalReconciled($user_id) ?? 0,
         ];
 
         $user_management = $this->userManagement($request);
-        $runs = $this->renderReconcilaitonRun();
+        $runs = $this->renderReconcilaitonRun($user_id);
 
-        $user_id = $request->session()->get('user_id');
 
         $total_unmatched_discrepancies = $this->getReconciliationTotalExceptions($user_id);
 
@@ -41,8 +47,9 @@ class AdminDashboardController extends Controller{
         return $user_management;
     }
 
-    public function renderReconcilaitonRun(){
+    public function renderReconcilaitonRun($user_id){
             $runs = ReconciliationRun::query()
+            ->where('executed_by', $user_id)
             ->latest()
             ->paginate(5);
             

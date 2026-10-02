@@ -7,10 +7,10 @@ use Throwable;
 
 class ReconciliationRunService{
 
-    public function latest_run(): LengthAwarePaginator|array
+    public function latest_run($user_id): LengthAwarePaginator|array
     {
         try {
-            return ReconciliationRun::latest()->paginate(10);
+            return ReconciliationRun::query()->where('executed_by', $user_id)->latest()->paginate(10);
         } catch (Throwable $th) {
             return ['message'=> $th];
         }

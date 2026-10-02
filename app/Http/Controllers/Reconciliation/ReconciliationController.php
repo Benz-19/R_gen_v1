@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Reconciliation;
 
+use App\Http\Controllers\Admin\AdminReconciliationController;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Employee\EmployeeReconciliationController;
 use App\Models\ReconciliationRun;
 use App\Services\Workspace\WorkspaceService;
 use Illuminate\Http\Request;
@@ -26,16 +28,63 @@ class ReconciliationController extends Controller
         return $exceptions;
     }
 
-    public function index()
+    /**
+     * Determine which reconciliation index controller should handle
+     * the request based on the authenticated user's role.
+     */
+    public function user(Request $request)
     {
-        $runs = ReconciliationRun::query()
-            ->latest()
-            ->paginate(20);
+        if ($request->user()->userDetail->is_admin) {
+            return app(AdminReconciliationController::class)
+                ->index($request);
+        }
 
-        $total_unmatched_discrepancies = $this->getReconciliationTotalExceptions();    
-
-        return view('admin.reconciliation-runs',compact('runs', 'total_unmatched_discrepancies'));
+        return app(EmployeeReconciliationController::class)
+            ->index($request);
     }
+
+    /**
+     * Determine which reconciliation execution page controller should
+     * handle the request based on the authenticated user's role.
+     */
+    public function executeUser(Request $request)
+    {
+        if ($request->user()->userDetail->is_admin) {
+            return app(AdminReconciliationController::class)
+                ->index($request);
+        }
+
+        return app(EmployeeReconciliationController::class)
+            ->index($request);
+    }
+
+    /**
+     * Determine which reconciliation trigger page controller should
+     * handle the request based on the authenticated user's role.
+     */
+    public function triggerUser(Request $request)
+    {
+        if ($request->user()->userDetail->is_admin) {
+            return app(AdminReconciliationController::class)
+                ->trigger_run($request);
+        }
+
+        return app(EmployeeReconciliationController::class)
+            ->trigger_run($request);
+    }
+
+    
+
+    // public function index()
+    // {
+    //     $runs = ReconciliationRun::query()
+    //         ->latest()
+    //         ->paginate(20);
+
+    //     $total_unmatched_discrepancies = $this->getReconciliationTotalExceptions();    
+
+    //     return view('admin.reconciliation-runs',compact('runs', 'total_unmatched_discrepancies'));
+    // }
 
     public function create()
     {

@@ -20,6 +20,7 @@
   "ending_balance",
   "fee_amount",
   "gross",
+  "gross_amount",
   "gross_value",
   "invoice_amount",
   "ledger_balance",

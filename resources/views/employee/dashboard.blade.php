@@ -15,9 +15,8 @@
     </style>
 </head>
 <body class="bg-black text-slate-100 font-sans antialiased bg-grid-pattern min-h-screen relative">
-
     <!-- Modal for Workspace Access -->
-    <div id="verificationModal" class="{{ $is_verified ? 'hidden' : 'flex' }} fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-xl p-4">
+    <div id="verificationModal" class="{{ $isVerified ? 'hidden' : 'flex' }} fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-xl p-4">
         <div class="bg-neutral-900 border border-neutral-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-6">
             <div class="space-y-2">
                 <h2 class="text-xl font-bold text-white tracking-tight">Workspace Access Required</h2>
@@ -58,15 +57,9 @@
                         <span class="text-lg font-bold tracking-tight text-white">ReconAgent</span>
                     </div>
                 </div>
-                <nav class="p-4 space-y-1 text-sm font-medium">
-                    <a href="#" class="flex items-center px-3 py-2.5 rounded-lg bg-white/10 text-white font-semibold">Overview</a>
-                    <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">Import Datasets</a>
-                    <a href="#" class="flex items-center px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">Reconciliation Runs</a>
-                    <a href="#" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-neutral-400 hover:bg-neutral-900 hover:text-white transition-colors">
-                        <span>Assigned Exceptions</span>
-                        <span class="px-2 py-0.5 text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full font-mono">0</span>
-                    </a>
-                </nav>
+
+                <x-employee.nav :total_unmatched_discrepancies="$total_unmatched_discrepancies" />
+            
             </div>
             <div class="p-4 border-t border-neutral-800 flex items-center justify-between">
                 <div>
@@ -86,9 +79,10 @@
                     <h1 class="text-2xl font-bold text-white tracking-tight">Employee Workspace</h1>
                     <p class="text-xs text-neutral-400 mt-1">Tenant: <span class="text-white font-medium">{{ $metrics['active_workspace'] ?? 'Organization Workspace' }}</span></p>
                 </div>
-                <button class="px-4 py-2 bg-white text-black hover:bg-neutral-200 font-semibold rounded-lg text-xs transition-colors flex items-center space-x-2">
-                    <span>+ New Import Session</span>
-                </button>
+                    <button class="w-full sm:w-auto justify-center px-4 py-2 bg-white text-black hover:bg-neutral-200 font-semibold rounded-lg text-xs transition-transform active:scale-95 duration-150 flex items-center space-x-2">
+                        <a href="/execute-recon-runs"><span>+ Run Reconciliation</span></a>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
             </header>
 
             <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -105,6 +99,118 @@
                     <p class="text-2xl font-bold mt-2 text-neutral-300 font-mono">0</p>
                 </div>
             </section>
+
+
+             <section class="animate-reveal delay-4 bg-black/40 border border-neutral-800 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-base font-semibold text-white">Recent Data Processing Runs</h2>
+                        <p class="text-xs text-neutral-400 mt-0.5">Automated background matching sessions across integrated APIs and datasets.</p>
+                    </div>
+                </div>
+
+                    <section class="animate-reveal delay-1 bg-black/40 border border-neutral-800 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+
+                    <div class="overflow-x-auto">
+
+                        <table class="w-full text-left text-xs min-w-[500px]">
+
+                            <thead class="bg-neutral-900/60 text-neutral-400 uppercase tracking-wider font-mono border-b border-neutral-800">
+
+                                <tr>
+
+                                    <th class="p-3">
+                                        Run ID
+                                    </th>
+
+                                    <th class="p-3">
+                                        Source Dataset(s)
+                                    </th>
+
+                                    <th class="p-3">
+                                        Status
+                                    </th>
+
+                                    <th class="p-3">
+                                        Execution Speed
+                                    </th>
+
+                                    <th class="p-3 text-right">
+                                        Actions
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody class="divide-y divide-neutral-800 text-neutral-300">
+
+                                @forelse($runs as $run)
+
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+
+                                        <td class="p-3 font-medium text-white font-mono">
+                                            #RUN-{{ $run->id }}
+                                        </td>
+
+
+                                        @if(!empty($run->source_a_filename) || !empty($run->source_b_filename))
+
+                                            <td class="p-3">
+                                                (a.) {{ $run->source_a_filename }}
+                                                <br>
+                                                (b.) {{ $run->source_b_filename }}
+                                            </td>
+
+                                        @else
+
+                                            <td class="p-3"></td>
+
+                                        @endif
+
+
+                                        <td class="p-3 font-medium {{ strtolower($run->status) === 'completed' ? 'text-emerald-400' : 'text-amber-400' }}">
+
+                                            {{ $run->status }}
+
+                                        </td>
+
+
+                                        <td class="p-3 font-mono">
+                                            {{ $run->execution_speed }}ms
+                                        </td>
+
+
+                                        <td class="p-3 text-right"><a href="/execute-recon-runs">View Log</a></td>
+
+                                    </tr>
+
+                                @empty
+
+                                    <tr>
+
+                                        <td
+                                            colspan="5"
+                                            class="p-4 text-center text-neutral-500 font-mono"
+                                        >
+                                            No processing runs recorded yet.
+                                        </td>
+
+                                    </tr>
+
+                                @endforelse
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </section>
+
+            </section>
+
         </main>
     </div>
 

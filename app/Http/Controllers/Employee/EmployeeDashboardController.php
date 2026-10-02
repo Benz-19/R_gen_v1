@@ -6,12 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Services\Auth\EmployeeAccountVerificationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use App\Models\ReconciliationRun;
+
 
 /**
  * Controls routing and views for the main employee dashboard interface.
  */
 class EmployeeDashboardController extends Controller
 {
+    private function getReconciliationTotalExceptions($user_id)
+    {
+        return ReconciliationRun::query()
+            ->where('executed_by', $user_id)
+            ->where('total_exceptions', '>', 0)
+            ->count();
+    }
+
+    private function getTotalReconciled($user_id){
+        return ReconciliationRun::query()->where('executed_by', $user_id)->count();
+    }
     /**
      * Renders the primary employee dashboard view.
      *
@@ -28,8 +41,20 @@ class EmployeeDashboardController extends Controller
 
         $isVerified = $verificationService->isVerified(['user_id' => $userId]);
 
-        return view('employee.dashboard', [
-            'is_verified' => $isVerified,
-        ]);
+        $runs = $this->renderReconcilaitonRun($userId);
+
+
+        $total_unmatched_discrepancies = $this->getReconciliationTotalExceptions($userId);
+
+        return view('employee.dashboard', compact('isVerified', 'runs', 'total_unmatched_discrepancies'));
+    }
+
+    public function renderReconcilaitonRun($userId){
+            $runs = ReconciliationRun::query()
+            ->where('executed_by', $userId)
+            ->latest()
+            ->paginate(5);
+            
+            return $runs;
     }
 }

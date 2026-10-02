@@ -7,15 +7,20 @@ use App\Http\Controllers\Auth\LoginAuthController;
 use App\Http\Controllers\Auth\LogoutAuthController;
 use App\Http\Controllers\Auth\RegisterAuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Employee\EmployeeReconciliationController;
 use App\Http\Controllers\PagesController;
 use App\Http\Controllers\Reconciliation\UnmatchedDiscrepanciesController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureWorkspaceAccess;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/demo', function () { return view('demo'); });
+Route::get('/demo', function () {
+    return view('demo');
+});
 
-Route::get('/', function () { return view('landing'); });
+Route::get('/', function () {
+    return view('landing');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -73,9 +78,6 @@ Route::middleware([EnsureUserIsAdmin::class])->group(function () {
 
     });
 
-    Route::get('/execute-recon-runs', [AdminReconciliationController::class, 'index'])->name('admin.reconciliation-runs');
-
-    Route::get('/trigger-run', [AdminReconciliationController::class, 'trigger_run'])->name('admin.trigger-run');
 });
 
 /*
@@ -86,22 +88,33 @@ Route::middleware([EnsureUserIsAdmin::class])->group(function () {
 
 Route::middleware(['auth', EnsureWorkspaceAccess::class])->group(function () {
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
 
     /*
      * Reconciliation index
+     *
+     * Both administrators and employees use the same URL.
+     *
+     * ReconciliationController@user determines which controller
+     * should handle the request and which view should be displayed.
      */
-    Route::get('/reconciliation-runs', [ReconciliationController::class, 'index'])->name('reconciliation-runs.index');
+    Route::get('/reconciliation-runs', [ReconciliationController::class, 'user'])
+        ->name('reconciliation-runs.index');
 
     /*
-     * Reconciliation index
+     * Unmatched discrepancies
      */
-    Route::get('/unmatched-discrepancies', [UnmatchedDiscrepanciesController::class, 'index'])->name('unmatched.discrepancies.index');
+    Route::get('/unmatched-discrepancies', [UnmatchedDiscrepanciesController::class, 'index'])
+        ->name('unmatched.discrepancies.index');
 
     /*
      * Start reconciliation
+     *
+     * This remains available through the authenticated user routes.
      */
-    Route::post('/reconciliation-runs/execute', [ReconciliationController::class, 'execute'])->name('reconciliation.runs.execute');
+    Route::post('/reconciliation-runs/execute', [ReconciliationController::class, 'execute'])
+        ->name('reconciliation.runs.execute');
 
     /*
      * IMPORTANT:
@@ -111,36 +124,49 @@ Route::middleware(['auth', EnsureWorkspaceAccess::class])->group(function () {
      *
      * ReconciliationRun $run
      */
-    Route::get('/reconciliation-runs/{run}/status', [ReconciliationController::class, 'checkStatus'])->name('reconciliation.runs.status');
+    Route::get('/reconciliation-runs/{run}/status', [ReconciliationController::class, 'checkStatus'])
+        ->name('reconciliation.runs.status');
 
-    Route::get('/reconciliation-runs/{run}/results', [ReconciliationController::class, 'getResults'])->name('reconciliation.runs.results');
+    Route::get('/reconciliation-runs/{run}/results', [ReconciliationController::class, 'getResults'])
+        ->name('reconciliation.runs.results');
 
-    Route::get('/reconciliation-runs/{run}/export/{type}', [ReconciliationController::class, 'exportFile'])->name('reconciliation.runs.export');
+    Route::get('/reconciliation-runs/{run}/export/{type}', [ReconciliationController::class, 'exportFile'])
+        ->name('reconciliation.runs.export');
+
+    /*
+     * Execute reconciliation runs page
+     *
+     * Both administrators and employees can access the same URL.
+     *
+     * ReconciliationController@executeUser determines which controller
+     * should handle the request and therefore which view is displayed.
+     */
+    Route::get('/execute-recon-runs', [ReconciliationController::class, 'executeUser'])
+        ->name('reconciliation.execute');
+
+    /*
+     * Trigger reconciliation run page
+     *
+     * Both administrators and employees can access the same URL.
+     *
+     * ReconciliationController@triggerUser determines which controller
+     * should handle the request and therefore which view is displayed.
+     */
+    Route::get('/trigger-run', [ReconciliationController::class, 'triggerUser'])
+        ->name('reconciliation.trigger');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Employee Routes
+|--------------------------------------------------------------------------
+*/
 
-// Admin
-// Route::middleware([EnsureUserIsAdmin::class])->group(function(){
-//     Route::get('/team-members', [TeamMemberController::class, 'index']);
-//     Route::get('/reconciliation-runs', [AdminReconciliationController::class, 'index'])->name('admin.reconcilaition-runs');
-//     Route::get('/trigger-run', [AdminReconciliationController::class, 'trigger_run'])->name('admin.trigger-run');
-// });
-
-
-
-// Route::middleware(['auth', EnsureWorkspaceAccess::class])->group(function () {
-//     // dashboard
-//     Route::get('/dashboard', [DashboardController::class, 'index'])
-//         ->name('dashboard');
-//     // 1. Route to receive the form, execute Python ML engine, and save results
-//     Route::post('/reconciliation-runs/execute', [ReconciliationController::class, 'execute'])
-//         ->name('reconciliation.runs.execute');
-
-//     // 2. API Route to fetch structured JSON analysis results for dynamic frontend rendering
-//     Route::get('/reconciliation-runs/{id}/results', [ReconciliationController::class, 'getResults'])
-//         ->name('reconciliation.runs.results');
-        
-//     // 3. (Optional) API Route to download output CSV files (matches, unmatched_a, unmatched_b)
-//     Route::get('/reconciliation-runs/{id}/export/{type}', [ReconciliationController::class, 'exportFile'])
-//         ->name('reconciliation.runs.export');
-// });
+/*
+ * Employee-specific routes can be added here when employees have
+ * functionality that does not share the same URL as administrators.
+ *
+ * The shared reconciliation routes above do not need separate
+ * employee routes because ReconciliationController handles the
+ * role-based dispatching.
+ */

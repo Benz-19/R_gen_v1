@@ -18,7 +18,7 @@
                 Unmatched Discrepancies
             </h1>
 
-            <p class="text-xs text-neutral-400 mt-1">
+            <p class="text-xs text-neutral-400 mt-1 mb-2">
                 List of unmatched discrepancies matching the engine history.
             </p>
 

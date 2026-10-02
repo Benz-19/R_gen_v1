@@ -17,7 +17,7 @@ class EnsureUserIsAdmin
     {
         $user = $request->user();
 
-        if(!$user || !$user->userDetail || !$user->userDetail->is_admin){
+        if(!$user || !$user->userDetail || $user->userDetail->account_type !== 'organization' || !$user->userDetail->is_admin){
             abort(403, 'Unauthorized Access to Administrative Operations.');
         }
         return $next($request);

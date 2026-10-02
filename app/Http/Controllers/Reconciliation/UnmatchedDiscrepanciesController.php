@@ -1,37 +1,22 @@
 <?php
 namespace App\Http\Controllers\Reconciliation;
 
+use App\Http\Controllers\Admin\AdminUnmatchedDiscrepancies;
 use App\Http\Controllers\Controller;
-use App\Models\ReconciliationRun;
+use App\Http\Controllers\Employee\EmployeeUnmatchedDiscrepancies;
 use Illuminate\Http\Request;
 
 class UnmatchedDiscrepanciesController extends Controller{
 
     public function index(Request $request)
     {
-        $user_id = $request->session()->get('user_id');
-
-        $runs = ReconciliationRun::query()
-            ->where('executed_by', $user_id)
-            ->latest()
-            ->paginate(20);
-
-        $total_unmatched_discrepancies = $this->totalExceptions($runs);
-
-        return view(
-            'admin.unmatched_discrepancies',
-            compact('runs', 'total_unmatched_discrepancies')
-        );
-    }
-
-    private function totalExceptions($runs){
-        $exceptions = 0;
-        foreach($runs as $run){
-            if(!empty($run->total_exceptions) && $run->total_exceptions >0){
-                $exceptions+=1;
-            }
+        
+        if ($request->user()->userDetail->is_admin) {
+            return app(AdminUnmatchedDiscrepancies::class)
+                ->index($request);
         }
 
-        return $exceptions;
+        return app(EmployeeUnmatchedDiscrepancies::class)
+            ->index($request);
     }
 }
