@@ -35,6 +35,7 @@
   "payout",
   "price",
   "principal_amount",
+  "recorded_amount",
   "refund_amount",
   "remittance_amount",
   "remitted_amount",

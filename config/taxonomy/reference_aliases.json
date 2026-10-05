@@ -18,6 +18,7 @@
   "invoice_no",
   "invoice_number",
   "journal_id",
+  "journal_no",
   "memo",
   "merchant_reference",
   "narration",

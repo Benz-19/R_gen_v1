@@ -225,21 +225,173 @@ def date_parse(value: Any) -> pd.Timestamp:
         if not text or re.fullmatch(r"\d{4,}", text):
             return pd.NaT
 
-        # Standard ISO YYYY-MM-DD or YYYY/MM/DD pattern check to prevent pandas warning
-        if re.match(r"^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", text):
+        # Normalize common date separators.
+        # This allows /, \, -, and . to be treated consistently.
+        normalized = re.sub(r"[\\/.-]", "/", text.strip())
+
+        # Remove time portion when the date is clearly separated from it.
+        # Example:
+        # 2024-05-12 14:30:00
+        # 12/05/2024 14:30
+        date_part = re.split(r"[T\s]", normalized, maxsplit=1)[0]
+
+        # ------------------------------------------------------------------
+        # ISO / YYYY-first formats
+        # ------------------------------------------------------------------
+
+        # YYYY/MM/DD
+        # YYYY/M/D
+        # YYYY/MM/DD HH:MM:SS
+        if re.match(r"^\d{4}/\d{1,2}/\d{1,2}(?:$|[T\s])", normalized):
             result = pd.to_datetime(text, errors="coerce")
+
             if pd.notna(result):
                 return pd.Timestamp(result)
 
+        # ------------------------------------------------------------------
+        # Extract simple numeric date components
+        # ------------------------------------------------------------------
+
+        match = re.fullmatch(
+            r"(\d{1,4})/(\d{1,2})/(\d{1,4})",
+            date_part
+        )
+
+        if match:
+            first, second, third = map(int, match.groups())
+
+            # --------------------------------------------------------------
+            # YYYY/MM/DD
+            # --------------------------------------------------------------
+            if first >= 1000:
+                result = pd.to_datetime(
+                    f"{first:04d}/{second:02d}/{third:02d}",
+                    format="%Y/%m/%d",
+                    errors="coerce",
+                )
+
+                if pd.notna(result):
+                    return pd.Timestamp(result)
+
+            # --------------------------------------------------------------
+            # YY/MM/DD
+            #
+            # Example:
+            # 24/05/12 -> 2024-05-12
+            #
+            # This is inherently ambiguous with DD/MM/YY, so we only
+            # interpret the first component as a year when the final
+            # component can clearly represent a day.
+            # --------------------------------------------------------------
+            if first < 100 and third <= 31:
+                # If the middle value is > 12, it cannot be a month,
+                # therefore this is more likely DD/MM/YY instead.
+                if second <= 12:
+                    result = pd.to_datetime(
+                        f"{first:02d}/{second:02d}/{third:02d}",
+                        format="%y/%m/%d",
+                        errors="coerce",
+                    )
+
+                    if pd.notna(result):
+                        return pd.Timestamp(result)
+
+            # --------------------------------------------------------------
+            # DD/MM/YYYY or DD/MM/YY
+            # --------------------------------------------------------------
+            if first > 12:
+                # First value cannot be a month, so it must be the day.
+                if third >= 1000:
+                    result = pd.to_datetime(
+                        f"{first}/{second}/{third}",
+                        format="%d/%m/%Y",
+                        errors="coerce",
+                    )
+                else:
+                    result = pd.to_datetime(
+                        f"{first}/{second}/{third}",
+                        format="%d/%m/%y",
+                        errors="coerce",
+                    )
+
+                if pd.notna(result):
+                    return pd.Timestamp(result)
+
+            # --------------------------------------------------------------
+            # MM/DD/YYYY or MM/DD/YY
+            # --------------------------------------------------------------
+            if second > 12:
+                # Second value cannot be a month, so it must be the day.
+                if third >= 1000:
+                    result = pd.to_datetime(
+                        f"{first}/{second}/{third}",
+                        format="%m/%d/%Y",
+                        errors="coerce",
+                    )
+                else:
+                    result = pd.to_datetime(
+                        f"{first}/{second}/{third}",
+                        format="%m/%d/%y",
+                        errors="coerce",
+                    )
+
+                if pd.notna(result):
+                    return pd.Timestamp(result)
+
+            # --------------------------------------------------------------
+            # Ambiguous cases:
+            #
+            # 01/02/2024
+            # 01/02/24
+            #
+            # Existing behavior prefers day-first.
+            # --------------------------------------------------------------
+            if third >= 1000:
+                result = pd.to_datetime(
+                    f"{first}/{second}/{third}",
+                    format="%d/%m/%Y",
+                    errors="coerce",
+                )
+
+                if pd.notna(result):
+                    return pd.Timestamp(result)
+
+            else:
+                result = pd.to_datetime(
+                    f"{first}/{second}/{third}",
+                    format="%d/%m/%y",
+                    errors="coerce",
+                )
+
+                if pd.notna(result):
+                    return pd.Timestamp(result)
+
+        # ------------------------------------------------------------------
         # Catch remaining formats with warnings suppressed
+        # ------------------------------------------------------------------
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
-            result = pd.to_datetime(text, errors="coerce", dayfirst=True)
+
+            # Existing day-first behavior
+            result = pd.to_datetime(
+                text,
+                errors="coerce",
+                dayfirst=True
+            )
+
             if pd.notna(result):
                 return pd.Timestamp(result)
 
-            result = pd.to_datetime(text, errors="coerce", dayfirst=False)
+            # Fallback to month-first
+            result = pd.to_datetime(
+                text,
+                errors="coerce",
+                dayfirst=False
+            )
+
             return pd.Timestamp(result) if pd.notna(result) else pd.NaT
+
     except Exception:
         return pd.NaT
 

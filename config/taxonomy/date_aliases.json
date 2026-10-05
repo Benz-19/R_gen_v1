@@ -51,5 +51,6 @@
   "tx_date",
   "updated_at",
   "val_date",
-  "value_date"
+  "value_date",
+  "value_day"
 ]
