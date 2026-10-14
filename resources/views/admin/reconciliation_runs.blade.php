@@ -303,6 +303,10 @@
                                     Execution Speed
                                 </th>
 
+                                <th class="p-3">
+                                    Execution By
+                                </th>
+
                                 <th class="p-3 text-right">
                                     Actions
                                 </th>
@@ -349,6 +353,14 @@
                                         {{ $run->execution_speed }}ms
                                     </td>
 
+                                    @foreach($reconciliation_executed_by as $executed_by)
+                                        @if($executed_by->id == $run->executed_by)
+                                            <td class="p-3 font-mono">
+                                                {{ $executed_by->username }}<br>
+                                                {{ $executed_by->email }}
+                                            </td>
+                                        @endif
+                                    @endforeach
 
                                     <td class="p-3 text-right">
 
@@ -1541,7 +1553,7 @@
                         }
 
                         .report-shell {
-                            max-width: 1100px;
+                            max-width: fit-content;
                             margin: 30px auto;
                             background: white;
                             border-radius: 14px;

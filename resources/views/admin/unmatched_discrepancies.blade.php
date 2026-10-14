@@ -297,6 +297,7 @@
         <x-unmatched_discrepancies.discrepancies
             :runs="$runs"
             :total_unmatched_discrepancies="$total_unmatched_discrepancies"
+            :reconciliation_executed_by="$reconciliation_executed_by"
         />
     </div>
 </body>

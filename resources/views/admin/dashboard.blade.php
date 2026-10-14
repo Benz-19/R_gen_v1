@@ -110,17 +110,19 @@
             <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">
                 <div class="animate-reveal delay-1 bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm hover:border-neutral-700 transition-colors">
                     <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Active Team Members</p>
-                    <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $metrics['total_users'] ?? 2 }}</p>
+                    <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $metrics['total_users'] ?? 0 }}</p>
                 </div>
 
                 <div class="animate-reveal delay-2 bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm hover:border-neutral-700 transition-colors">
                     <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Reconciled Transactions</p>
-                    <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $metrics['total_reconciled'] ?? 20 }}</p>
+                    <p class="text-xs font-bold mt-2 text-white font-mono">Executed by you: {{ $metrics['total_reconciled_by_user'] ?? 0 }}</p>
+                    <p class="text-xs font-bold mt-2 text-white font-mono">Executed by Team: {{ $metrics['total_reconciled_by_team'] ?? 0 }}</p>
                 </div>
 
                 <div class="animate-reveal delay-3 bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm hover:border-neutral-700 transition-colors">
                     <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Unmatched Discrepancies</p>
-                    <p class="text-2xl font-bold mt-2 text-emerald-400 font-mono">{{ $metrics['pending_exceptions'] ?? 0 }}</p>
+                    <p class="text-xs font-bold mt-2 text-emerald-400 font-mono">Found by you: {{ $metrics['total_exeptions_caught_by_user'] ?? 0 }}</p>
+                    <p class="text-xs font-bold mt-2 text-emerald-400 font-mono">Found by Team: {{ $metrics['total_exeptions_caught_by_team'] ?? 0 }}</p>
                 </div>
 
                 <div class="animate-reveal delay-4 bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm hover:border-neutral-700 transition-colors">
@@ -161,6 +163,10 @@
 
                                     <th class="p-3">
                                         Execution Speed
+                                    </th>
+
+                                    <th class="p-3">
+                                        Execution By
                                     </th>
 
                                     <th class="p-3 text-right">
@@ -208,6 +214,14 @@
                                         <td class="p-3 font-mono">
                                             {{ $run->execution_speed }}ms
                                         </td>
+                                        @foreach($reconciliation_executed_by as $executed_by)
+                                            @if($executed_by->id == $run->executed_by)
+                                                <td class="p-3 font-mono">
+                                                    {{ $executed_by->username }}<br>
+                                                    {{ $executed_by->email }}
+                                                </td>
+                                            @endif
+                                        @endforeach
 
 
                                         <td class="p-3 text-right"><a href="/execute-recon-runs">View Log</a></td>

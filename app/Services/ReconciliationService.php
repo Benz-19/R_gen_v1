@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ReconciliationRun;
 use App\Models\UnclassifiedColumn;
 use App\Services\Workspace\WorkspaceService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
@@ -851,5 +852,42 @@ class ReconciliationService
         }
 
         return $data;
+    }
+
+
+
+    // Controller called methods
+    public function getReconciliationTotalExceptions($workspace_id)
+    {
+        return ReconciliationRun::query()
+            ->where('workspace_id', $workspace_id)
+            ->where('total_exceptions', '>', 0)
+            ->count();
+    }
+
+    public function getReconciliationTotalExceptionsByUser($user_id)
+    {
+        return ReconciliationRun::query()
+            ->where('executed_by', $user_id)
+            ->where('total_exceptions', '>', 0)
+            ->count();
+    }
+
+    public function getTotalReconciled($workspace_id){
+        return ReconciliationRun::query()->where('workspace_id', $workspace_id)->count();
+    }
+
+    public function getTotalReconciledByUser($user_id){
+        return ReconciliationRun::query()->where('executed_by', $user_id)->count();
+    }
+
+    public function ReconciliationExecutedBy($workspace_id){
+        return DB::select("
+                    SELECT DISTINCT u.id, u.username, u.email
+                    FROM users AS u
+                    INNER JOIN reconciliation_runs AS recon_r
+                    ON recon_r.executed_by = u.id
+                    WHERE recon_r.workspace_id = ?
+                ", [$workspace_id]);
     }
 }

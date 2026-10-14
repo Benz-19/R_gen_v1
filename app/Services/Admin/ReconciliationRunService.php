@@ -15,4 +15,13 @@ class ReconciliationRunService{
             return ['message'=> $th];
         }
     }
+
+    public function latest_run_all_tenant($workspace_id): LengthAwarePaginator|array
+    {
+        try {
+            return ReconciliationRun::query()->where('workspace_id', $workspace_id)->latest()->paginate(10);
+        } catch (Throwable $th) {
+            return ['message'=> $th];
+        }
+    }
 }

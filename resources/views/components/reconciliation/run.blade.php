@@ -3063,7 +3063,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     .report {
-                        max-width: 1100px;
+                        max-width: fit-content;
                         margin: 0 auto;
                         background: #ffffff;
                         box-shadow:
