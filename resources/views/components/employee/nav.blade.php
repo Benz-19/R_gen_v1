@@ -5,7 +5,7 @@
 <nav class="p-4 space-y-1 text-sm font-medium pt-20 md:pt-4">
     <a href="/dashboard" 
        class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('dashboard') ? 'bg-white/10 text-white font-semibold border border-white/10 shadow-sm' : 'text-neutral-400 hover:bg-neutral-900 hover:text-white' }}">
-        Overview
+        Dashboard
     </a>
     
     <a href="/execute-recon-runs" 

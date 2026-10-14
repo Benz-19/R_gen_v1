@@ -203,7 +203,7 @@
                     </p>
 
                     <p class="text-[10px] text-neutral-500">
-                        Employee Role
+                        Reconciliation Specialist
                     </p>
 
                 </div>
@@ -1541,7 +1541,7 @@
                         }
 
                         .report-shell {
-                            max-width: 1100px;
+                            max-width: fit-content;
                             margin: 30px auto;
                             background: white;
                             border-radius: 14px;

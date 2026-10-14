@@ -16,6 +16,8 @@ Implemented pipelines:
 8. CSV / Excel / PDF ingestion
 9. Optional OCR fallback for scanned PDFs when pytesseract is installed
 10. JSON-friendly and DataFrame-friendly results
+11. Post-match exception audit (two-way identity join, categorized exceptions)
+12. Exception queue feeds the existing report structure (unmatched_*_rows)
 """
 
 from __future__ import annotations
@@ -31,10 +33,15 @@ import warnings
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
-from utils.column_classifier import SelfLearningColumnClassifier
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
+
+# Fallback handling for column classifier dependency
+try:
+    from utils.column_classifier import SelfLearningColumnClassifier
+except ImportError:
+    SelfLearningColumnClassifier = None
 
 try:
     import pdfplumber
@@ -123,6 +130,22 @@ class EngineConfig:
     enable_fx: bool = True
     enable_split: bool = True
     enable_gateway: bool = True
+
+    # ------------------------------------------------------------------
+    # Exception audit settings
+    # ------------------------------------------------------------------
+    # Hard-wire the real column names here if auto-detection guesses wrong.
+    audit_entity_column: Optional[str] = None
+    audit_direction_column: Optional[str] = None
+    # Regex whose LAST numeric group (group 1 if present) is the trace ID.
+    # Default: last run of digits in the reference.
+    audit_trace_pattern: Optional[str] = None
+
+    # When True, the categorized exceptions REPLACE the engine's raw
+    # unmatched lists in unmatched_a_rows / unmatched_b_rows / summary, so the
+    # browser report shows every discrepancy. Set False to restore the old
+    # report exactly (exceptions are then only in result["exceptions"]).
+    report_exceptions_as_unmatched: bool = True
 
 
 def safe_text(value: Any) -> str:
@@ -230,28 +253,16 @@ def date_parse(value: Any) -> pd.Timestamp:
         normalized = re.sub(r"[\\/.-]", "/", text.strip())
 
         # Remove time portion when the date is clearly separated from it.
-        # Example:
-        # 2024-05-12 14:30:00
-        # 12/05/2024 14:30
         date_part = re.split(r"[T\s]", normalized, maxsplit=1)[0]
 
-        # ------------------------------------------------------------------
         # ISO / YYYY-first formats
-        # ------------------------------------------------------------------
-
-        # YYYY/MM/DD
-        # YYYY/M/D
-        # YYYY/MM/DD HH:MM:SS
         if re.match(r"^\d{4}/\d{1,2}/\d{1,2}(?:$|[T\s])", normalized):
             result = pd.to_datetime(text, errors="coerce")
 
             if pd.notna(result):
                 return pd.Timestamp(result)
 
-        # ------------------------------------------------------------------
         # Extract simple numeric date components
-        # ------------------------------------------------------------------
-
         match = re.fullmatch(
             r"(\d{1,4})/(\d{1,2})/(\d{1,4})",
             date_part
@@ -260,9 +271,7 @@ def date_parse(value: Any) -> pd.Timestamp:
         if match:
             first, second, third = map(int, match.groups())
 
-            # --------------------------------------------------------------
             # YYYY/MM/DD
-            # --------------------------------------------------------------
             if first >= 1000:
                 result = pd.to_datetime(
                     f"{first:04d}/{second:02d}/{third:02d}",
@@ -273,19 +282,8 @@ def date_parse(value: Any) -> pd.Timestamp:
                 if pd.notna(result):
                     return pd.Timestamp(result)
 
-            # --------------------------------------------------------------
-            # YY/MM/DD
-            #
-            # Example:
-            # 24/05/12 -> 2024-05-12
-            #
-            # This is inherently ambiguous with DD/MM/YY, so we only
-            # interpret the first component as a year when the final
-            # component can clearly represent a day.
-            # --------------------------------------------------------------
+            # YY/MM/DD (only when the last component can clearly be a day)
             if first < 100 and third <= 31:
-                # If the middle value is > 12, it cannot be a month,
-                # therefore this is more likely DD/MM/YY instead.
                 if second <= 12:
                     result = pd.to_datetime(
                         f"{first:02d}/{second:02d}/{third:02d}",
@@ -296,11 +294,8 @@ def date_parse(value: Any) -> pd.Timestamp:
                     if pd.notna(result):
                         return pd.Timestamp(result)
 
-            # --------------------------------------------------------------
             # DD/MM/YYYY or DD/MM/YY
-            # --------------------------------------------------------------
             if first > 12:
-                # First value cannot be a month, so it must be the day.
                 if third >= 1000:
                     result = pd.to_datetime(
                         f"{first}/{second}/{third}",
@@ -317,11 +312,8 @@ def date_parse(value: Any) -> pd.Timestamp:
                 if pd.notna(result):
                     return pd.Timestamp(result)
 
-            # --------------------------------------------------------------
             # MM/DD/YYYY or MM/DD/YY
-            # --------------------------------------------------------------
             if second > 12:
-                # Second value cannot be a month, so it must be the day.
                 if third >= 1000:
                     result = pd.to_datetime(
                         f"{first}/{second}/{third}",
@@ -338,14 +330,7 @@ def date_parse(value: Any) -> pd.Timestamp:
                 if pd.notna(result):
                     return pd.Timestamp(result)
 
-            # --------------------------------------------------------------
-            # Ambiguous cases:
-            #
-            # 01/02/2024
-            # 01/02/24
-            #
-            # Existing behavior prefers day-first.
-            # --------------------------------------------------------------
+            # Ambiguous cases: existing behavior prefers day-first.
             if third >= 1000:
                 result = pd.to_datetime(
                     f"{first}/{second}/{third}",
@@ -366,14 +351,10 @@ def date_parse(value: Any) -> pd.Timestamp:
                 if pd.notna(result):
                     return pd.Timestamp(result)
 
-        # ------------------------------------------------------------------
         # Catch remaining formats with warnings suppressed
-        # ------------------------------------------------------------------
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
 
-            # Existing day-first behavior
             result = pd.to_datetime(
                 text,
                 errors="coerce",
@@ -383,7 +364,6 @@ def date_parse(value: Any) -> pd.Timestamp:
             if pd.notna(result):
                 return pd.Timestamp(result)
 
-            # Fallback to month-first
             result = pd.to_datetime(
                 text,
                 errors="coerce",
@@ -876,6 +856,217 @@ class Transaction:
         }
 
 
+
+# ============================================================================
+# STRICT ISO 4217 CURRENCY RESOLUTION
+# ============================================================================
+
+_CURRENCY_REGISTRY_CACHE = {}
+
+# Explicit symbol mappings only. Text codes and names are validated against
+# currencies_iso4217.json; arbitrary three-letter strings are never accepted.
+_CURRENCY_SYMBOL_MAP = {
+    "€": "EUR",
+    "$": "USD",
+    "£": "GBP",
+    "¥": "JPY",
+    "₹": "INR",
+    "₩": "KRW",
+    "₺": "TRY",
+    "₽": "RUB",
+    "₫": "VND",
+    "฿": "THB",
+}
+
+
+def _load_currency_registry(registry_path=None):
+    """
+    Load the canonical ISO 4217 registry.
+
+    Searches the explicitly supplied path first, then common taxonomy
+    locations relative to the working directory and this Python file.
+
+    Supported optional alias formats:
+      - Top-level: {"aliases": {"US DOLLAR": "USD"}}
+      - Per currency: {"code": "USD", "aliases": ["US DOLLAR"]}
+
+    Only aliases pointing to registered canonical codes are accepted.
+    """
+    cache_key = str(registry_path or "__auto__")
+
+    if cache_key in _CURRENCY_REGISTRY_CACHE:
+        return _CURRENCY_REGISTRY_CACHE[cache_key]
+
+    candidates = []
+
+    if registry_path:
+        candidates.append(Path(registry_path))
+
+    base_dir = Path(__file__).resolve().parent
+
+    candidates.extend([
+        Path("taxonomy/currencies_iso4217.json"),
+        Path("config/taxonomy/currencies_iso4217.json"),
+        base_dir / "taxonomy" / "currencies_iso4217.json",
+        base_dir / "config" / "taxonomy" / "currencies_iso4217.json",
+        base_dir.parent / "taxonomy" / "currencies_iso4217.json",
+        base_dir.parent / "config" / "taxonomy" / "currencies_iso4217.json",
+    ])
+
+    seen = set()
+    registry = {
+        "codes": set(),
+        "names": {},
+        "aliases": {},
+    }
+
+    for candidate in candidates:
+        try:
+            candidate = candidate.resolve()
+        except Exception:
+            continue
+
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+
+        if not candidate.is_file():
+            continue
+
+        try:
+            with candidate.open("r", encoding="utf-8") as file:
+                data = json.load(file)
+
+            currencies = data.get("currencies", [])
+            if not isinstance(currencies, list):
+                continue
+
+            codes = set()
+            names = {}
+            aliases = {}
+
+            for item in currencies:
+                if not isinstance(item, dict):
+                    continue
+
+                code = safe_text(item.get("code")).upper()
+
+                # The registry itself must provide a valid ISO-style code.
+                if not re.fullmatch(r"[A-Z]{3}", code):
+                    continue
+
+                codes.add(code)
+
+                name = normalize_text(item.get("name"))
+                if name:
+                    names[name] = code
+
+                item_aliases = item.get("aliases", [])
+                if isinstance(item_aliases, str):
+                    item_aliases = [item_aliases]
+
+                if isinstance(item_aliases, list):
+                    for alias in item_aliases:
+                        normalized_alias = normalize_text(alias)
+                        if normalized_alias:
+                            aliases[normalized_alias] = code
+
+            # Optional top-level alias mapping.
+            top_aliases = data.get("aliases", {})
+            if isinstance(top_aliases, dict):
+                for alias, target in top_aliases.items():
+                    normalized_alias = normalize_text(alias)
+                    target_code = safe_text(target).upper()
+
+                    if normalized_alias and target_code in codes:
+                        aliases[normalized_alias] = target_code
+
+            # Only codes actually present in the JSON are trusted.
+            registry = {
+                "codes": codes,
+                "names": names,
+                "aliases": aliases,
+            }
+
+            break
+
+        except (OSError, ValueError, TypeError):
+            # Try the next supported location.
+            continue
+
+    # Cache even an empty result. An absent or invalid registry must not
+    # silently cause the engine to fall back to guessing currency codes.
+    _CURRENCY_REGISTRY_CACHE[cache_key] = registry
+    return registry
+
+
+def resolve_currency(value, registry_path=None):
+    """
+    Resolve a value to a registered ISO 4217 code.
+
+    Returns:
+        Canonical code such as "EUR" or "USD", or "" when unresolved.
+
+    Examples:
+        "EUR"                         -> "EUR" if registered
+        "United Arab Emirates dirham" -> "AED" if registered
+        "JRN"                         -> "" unless JRN is in the registry
+        ""                            -> ""
+    """
+    raw = safe_text(value)
+
+    if not raw:
+        return ""
+
+    registry = _load_currency_registry(registry_path)
+    codes = registry["codes"]
+
+    if not codes:
+        return ""
+
+    # An explicit standalone currency symbol may be resolved directly,
+    # but its target must also exist in the loaded registry.
+    stripped = raw.strip()
+    if stripped in _CURRENCY_SYMBOL_MAP:
+        symbol_code = _CURRENCY_SYMBOL_MAP[stripped]
+        return symbol_code if symbol_code in codes else ""
+
+    # Normalize Unicode spaces and letter case for code/name resolution.
+    upper = stripped.upper()
+
+    # Accept a canonical code only when it is a standalone token.
+    # This does NOT make every three-letter token a currency.
+    tokens = re.findall(r"(?<![A-Z])([A-Z]{3})(?![A-Z])", upper)
+    registered_tokens = [token for token in tokens if token in codes]
+
+    if len(set(registered_tokens)) == 1:
+        return registered_tokens[0]
+
+    # Do not guess when a value contains multiple different currency codes.
+    if len(set(registered_tokens)) > 1:
+        return ""
+
+    # Match the complete normalized currency name or an explicit alias.
+    normalized = normalize_text(stripped)
+
+    if normalized in registry["names"]:
+        return registry["names"][normalized]
+
+    if normalized in registry["aliases"]:
+        return registry["aliases"][normalized]
+
+    # A symbol embedded in a larger value is accepted only when it has
+    # an explicit, registered mapping and no conflicting currency code.
+    for symbol, code in _CURRENCY_SYMBOL_MAP.items():
+        if symbol in stripped and code in codes:
+            return code
+
+    # Unknown values remain unresolved. Never infer from the first
+    # three letters or from an unrecognized three-letter token.
+    return ""
+
+
+
 class TransactionNormalizer:
     """Convert arbitrary detected schemas into a common transaction model."""
 
@@ -966,21 +1157,11 @@ class TransactionNormalizer:
             ]
         )
 
+
     def _normalize_currency(self, value: Any) -> str:
-        text = normalize_text(value)
-        if text in self.COMMON_CURRENCY_MAP:
-            return self.COMMON_CURRENCY_MAP[text]
+        """Resolve currency strictly against the ISO 4217 taxonomy."""
+        return resolve_currency(value)
 
-        raw = safe_text(value).upper()
-        match = re.search(r"\b([A-Z]{3})\b", raw)
-        if match:
-            return match.group(1)
-
-        for symbol, code in self.COMMON_CURRENCY_MAP.items():
-            if symbol in safe_text(value).lower():
-                return code
-
-        return raw[:3] if len(raw) == 3 else ""
 
 
 class DynamicFXEstimator:
@@ -1344,7 +1525,7 @@ class GatewayFeeInferer:
         if not observations:
             return []
 
-        # Cluster fee percentages into 0.5% tolerance buckets to prevent fragmented outputs
+        # Cluster fee percentages into 0.5% tolerance buckets
         profiles, used = [], set()
         for i, obs in enumerate(observations):
             if i in used:
@@ -1445,6 +1626,325 @@ class GatewayFeeInferer:
         return max(float(fuzz.ratio(aa, bb)), float(fuzz.token_set_ratio(aa, bb)))
 
 
+# ======================================================================
+# POST-MATCH EXCEPTION AUDIT
+# ----------------------------------------------------------------------
+# The matching passes answer "are these two rows the same transaction?".
+# This audit answers "is the pair actually clean?".  It runs a full
+# two-way join on the trace ID and emits categorized exceptions.
+# It never mutates the matching results or the input files.
+# ======================================================================
+
+_AUDIT_ENTITY_COL = re.compile(
+    r"counterparty|entity|party|payee|payer|vendor|customer|merchant|company|name",
+    re.I,
+)
+_AUDIT_ENTITY_EXCLUDE = re.compile(
+    r"ref|descr|memo|narrat|remark|comment|reason|id$|number|file|source",
+    re.I,
+)
+_AUDIT_DIRECTION_COL = re.compile(
+    r"direction|dr.?cr|debit.?credit|flow|movement|type|side|indicator",
+    re.I,
+)
+
+
+def extract_trace_key(
+    reference: str,
+    description: str,
+    fallback: str,
+    pattern: Optional[str] = None,
+) -> str:
+    """
+    Identity key for a transaction.
+
+    Default: the LAST group of digits in the reference, as an integer, so
+    'jrn 2025 00450' and 'st 000450' both become '450'.
+    Falls back to 'bnk25 00450'-style tokens in the description, then to a
+    unique placeholder so the row is reported as an orphan instead of being
+    silently dropped.
+    """
+    ref = reference or ""
+
+    if pattern:
+        try:
+            matches = list(re.finditer(pattern, ref, flags=re.I))
+            if matches:
+                last = matches[-1]
+                token = last.group(1) if last.groups() else last.group(0)
+                digits = re.findall(r"\d+", token)
+                if digits:
+                    return str(int(digits[-1]))
+        except re.error:
+            pass
+
+    nums = re.findall(r"\d+", ref)
+    if nums:
+        return str(int(nums[-1]))
+
+    match = re.search(r"bnk\d*\s+(\d+)", description or "")
+    if match:
+        return str(int(match.group(1)))
+
+    return fallback
+
+
+def _audit_direction(tx: Transaction, column: Optional[str] = None) -> str:
+    """Return 'DEBIT' or 'CREDIT' for a transaction."""
+    if column and column in tx.raw_values:
+        text = safe_text(tx.raw_values[column]).upper()
+        if text in ("DEBIT", "DR", "D"):
+            return "DEBIT"
+        if text in ("CREDIT", "CR", "C"):
+            return "CREDIT"
+
+    # Prefer columns whose NAME looks like a direction flag.
+    for col, value in tx.raw_values.items():
+        if _AUDIT_DIRECTION_COL.search(str(col)):
+            text = safe_text(value).upper()
+            if text in ("DEBIT", "DR"):
+                return "DEBIT"
+            if text in ("CREDIT", "CR"):
+                return "CREDIT"
+
+    # Any cell that is exactly DEBIT/CREDIT.
+    for value in tx.raw_values.values():
+        text = safe_text(value).upper()
+        if text in ("DEBIT", "DR"):
+            return "DEBIT"
+        if text in ("CREDIT", "CR"):
+            return "CREDIT"
+
+    return "CREDIT" if tx.signed_amount > 0 else "DEBIT"
+
+
+def _audit_entity(tx: Transaction, column: Optional[str] = None) -> str:
+    """Return the normalized counterparty name, or '' when not found."""
+    if column and column in tx.raw_values:
+        return normalize_text(tx.raw_values[column])
+
+    for col, value in tx.raw_values.items():
+        name = str(col)
+        if _AUDIT_ENTITY_EXCLUDE.search(name):
+            continue
+        if _AUDIT_ENTITY_COL.search(name) and safe_text(value):
+            return normalize_text(value)
+
+    return ""
+
+
+def audit_exceptions(
+    a: pd.DataFrame,
+    b: pd.DataFrame,
+    date_window_days: int,
+    entity_column: Optional[str] = None,
+    direction_column: Optional[str] = None,
+    trace_pattern: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Two-way identity audit between normalized Source A (ledger) and
+    Source B (statement).
+
+    Exception types:
+        UNMATCHED_LEDGER_ORPHAN     in A only
+        UNMATCHED_STATEMENT_ORPHAN  in B only
+        AMOUNT_MISMATCH             same trace ID, amounts differ (to the cent)
+        ENTITY_MISMATCH             same trace ID, counterparty differs
+        DIRECTION_MISMATCH          same trace ID, DEBIT/CREDIT differs
+    Date differences are NOT exceptions; they are logged separately.
+    """
+
+    def build_index(df: pd.DataFrame) -> Dict[str, List[Transaction]]:
+        index: Dict[str, List[Transaction]] = {}
+        if df is None or df.empty or "_transaction" not in df.columns:
+            return index
+        for _, row in df.iterrows():
+            tx: Transaction = row["_transaction"]
+            key = extract_trace_key(
+                tx.reference,
+                tx.description,
+                fallback=f"__nokey_{tx.source}_{tx.source_row}",
+                pattern=trace_pattern,
+            )
+            index.setdefault(key, []).append(tx)
+        return index
+
+    index_a = build_index(a)
+    index_b = build_index(b)
+
+    items: List[Dict[str, Any]] = []
+    timing_shifts: List[Dict[str, Any]] = []
+
+    def add(kind, key, ta=None, tb=None, **extra):
+        items.append(
+            {
+                "type": kind,
+                "trace_key": key,
+                "source_a_row": int(ta.source_row) if ta is not None else None,
+                "source_b_row": int(tb.source_row) if tb is not None else None,
+                "date_a": ta.date.strftime("%Y-%m-%d") if ta is not None else None,
+                "date_b": tb.date.strftime("%Y-%m-%d") if tb is not None else None,
+                "amount_a": safe_round(ta.amount, 2) if ta is not None else None,
+                "amount_b": safe_round(tb.amount, 2) if tb is not None else None,
+                "reference_a": ta.reference if ta is not None else None,
+                "reference_b": tb.reference if tb is not None else None,
+                "ledger_row": ta.to_dict() if ta is not None else None,
+                "statement_row": tb.to_dict() if tb is not None else None,
+                **extra,
+            }
+        )
+
+    def sort_key(key: str):
+        return (0, int(key)) if key.isdigit() else (1, key)
+
+    for key in sorted(set(index_a) | set(index_b), key=sort_key):
+        list_a = sorted(index_a.get(key, []), key=lambda t: (t.date, t.source_row))
+        list_b = sorted(index_b.get(key, []), key=lambda t: (t.date, t.source_row))
+
+        paired = min(len(list_a), len(list_b))
+
+        # Orphans (two-way)
+        for ta in list_a[paired:]:
+            add("UNMATCHED_LEDGER_ORPHAN", key, ta=ta)
+        for tb in list_b[paired:]:
+            add("UNMATCHED_STATEMENT_ORPHAN", key, tb=tb)
+
+        # Pair comparators
+        for ta, tb in zip(list_a[:paired], list_b[:paired]):
+            if round(ta.amount * 100) != round(tb.amount * 100):
+                add(
+                    "AMOUNT_MISMATCH", key, ta, tb,
+                    difference=round(abs(ta.amount - tb.amount), 2),
+                )
+
+            entity_a = _audit_entity(ta, entity_column)
+            entity_b = _audit_entity(tb, entity_column)
+            if entity_a and entity_b and entity_a != entity_b:
+                add("ENTITY_MISMATCH", key, ta, tb, entity_a=entity_a, entity_b=entity_b)
+
+            direction_a = _audit_direction(ta, direction_column)
+            direction_b = _audit_direction(tb, direction_column)
+            if direction_a != direction_b:
+                add(
+                    "DIRECTION_MISMATCH", key, ta, tb,
+                    direction_a=direction_a, direction_b=direction_b,
+                )
+
+            days = abs((ta.date - tb.date).days)
+            if days > 0:
+                timing_shifts.append(
+                    {
+                        "trace_key": key,
+                        "date_a": ta.date.strftime("%Y-%m-%d"),
+                        "date_b": tb.date.strftime("%Y-%m-%d"),
+                        "days": int(days),
+                        "within_window": bool(days <= date_window_days),
+                    }
+                )
+
+    counts: Dict[str, int] = {}
+    for item in items:
+        counts[item["type"]] = counts.get(item["type"], 0) + 1
+
+    return {
+        "items": items,
+        "counts": counts,
+        "total": len(items),
+        "timing_shifts_ignored": timing_shifts,
+        "timing_shift_count": len(timing_shifts),
+    }
+
+
+def _exception_detail(item: Dict[str, Any]) -> str:
+    """Short human-readable explanation shown in the report."""
+    kind = item["type"]
+    if kind == "UNMATCHED_LEDGER_ORPHAN":
+        return "Present in ledger (Source A) but missing from the statement (Source B)."
+    if kind == "UNMATCHED_STATEMENT_ORPHAN":
+        return "Present in the statement (Source B) but missing from the ledger (Source A)."
+    if kind == "AMOUNT_MISMATCH":
+        return (
+            f"Amount differs: A={item.get('amount_a')} vs B={item.get('amount_b')} "
+            f"(difference {item.get('difference')})."
+        )
+    if kind == "ENTITY_MISMATCH":
+        return f"Counterparty differs: A='{item.get('entity_a')}' vs B='{item.get('entity_b')}'."
+    if kind == "DIRECTION_MISMATCH":
+        return f"Direction differs: A={item.get('direction_a')} vs B={item.get('direction_b')}."
+    return "Record could not be reconciled."
+
+
+def _tx_row_to_dict(tx_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep the exact key order the report already renders."""
+    keys = ["source", "source_row", "date", "amount", "signed_amount",
+            "currency", "reference", "description"]
+    return {k: tx_dict.get(k) for k in keys}
+
+
+def build_exception_rows(
+    items: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Convert audit exceptions into separate Source A and Source B report rows.
+
+    Paired discrepancies appear in BOTH source reports:
+      - Source A gets the ledger transaction and Source B counterpart details.
+      - Source B gets the statement transaction and Source A counterpart details.
+
+    Orphan transactions appear only in the report for their own source.
+    exception_detail, difference, trace_key, and counterpart fields are retained.
+    """
+    rows_a: List[Dict[str, Any]] = []
+    rows_b: List[Dict[str, Any]] = []
+
+    for item in items:
+        ledger = item.get("ledger_row")
+        statement = item.get("statement_row")
+
+        exception_type = item.get("type")
+        detail = _exception_detail(item)
+        trace_key = item.get("trace_key")
+
+        common_fields = {
+            "exception_type": exception_type,
+            "exception_detail": detail,
+            "trace_key": trace_key,
+            "difference": item.get("difference"),
+        }
+
+        # Source A: ledger transaction.
+        if ledger is not None:
+            row_a = _tx_row_to_dict(ledger)
+            row_a.update(common_fields)
+
+            if statement is not None:
+                row_a.update({
+                    "counterpart_source_row": statement.get("source_row"),
+                    "counterpart_date": statement.get("date"),
+                    "counterpart_amount": statement.get("amount"),
+                    "counterpart_reference": statement.get("reference"),
+                })
+
+            rows_a.append(row_a)
+
+        # Source B: statement transaction.
+        # IMPORTANT: include paired discrepancies here too, not just orphans.
+        if statement is not None:
+            row_b = _tx_row_to_dict(statement)
+            row_b.update(common_fields)
+
+            if ledger is not None:
+                row_b.update({
+                    "counterpart_source_row": ledger.get("source_row"),
+                    "counterpart_date": ledger.get("date"),
+                    "counterpart_amount": ledger.get("amount"),
+                    "counterpart_reference": ledger.get("reference"),
+                })
+
+            rows_b.append(row_b)
+
+    return rows_a, rows_b
+
 class SmartReconEngine:
     """Main orchestration class for reconciliation."""
 
@@ -1458,14 +1958,27 @@ class SmartReconEngine:
         self.split_detector = SplitPaymentDetector(self.config)
         self.fee_inferer = GatewayFeeInferer(self.config)
 
-    def load_and_normalize(self, file_path: str) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
-        frames = self.loader.load(file_path)
+    def load_and_normalize(
+        self,
+        file_input: Union[str, Path, pd.DataFrame],
+        default_source_name: str = "Source",
+    ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+        """
+        Load and normalize transaction data from either a file path or an
+        in-memory pandas DataFrame.
+        """
+        if isinstance(file_input, pd.DataFrame):
+            frames = [file_input]
+            source_name = default_source_name
+        else:
+            frames = self.loader.load(str(file_input))
+            source_name = Path(file_input).name
+
         all_transactions = []
         schemas = []
 
         for table_index, df in enumerate(frames):
             schema = self.schema_detector.detect(df)
-            source_name = Path(file_path).name
 
             sheet = df.attrs.get("source_sheet")
             page = df.attrs.get("source_page")
@@ -1478,7 +1991,7 @@ class SmartReconEngine:
                 location_parts.append(f"page={page}")
             if table:
                 location_parts.append(f"table={table}")
-            else:
+            elif len(frames) > 1:
                 location_parts.append(f"table={table_index + 1}")
 
             source_label = " | ".join(location_parts)
@@ -1502,68 +2015,162 @@ class SmartReconEngine:
             schemas.append({"source": source_label, "schema": asdict(schema)})
 
         if not all_transactions:
-            raise ValueError(f"No valid financial transactions could be detected in {file_path}.")
+            raise ValueError(f"No valid financial transactions could be detected in {source_name}.")
 
         return pd.concat(all_transactions, ignore_index=True), schemas
 
     def reconcile(
-            self,
-            df_a: pd.DataFrame,
-            df_b: pd.DataFrame,
-            source_a_name: str = "Source_A",
-            source_b_name: str = "Source_B",
-        ) -> Dict[str, Any]:
+        self,
+        df_a: Union[str, Path, pd.DataFrame],
+        df_b: Union[str, Path, pd.DataFrame],
+        source_a_name: str = "Source_A",
+        source_b_name: str = "Source_B",
+    ) -> Dict[str, Any]:
 
-            # Normalize incoming preprocessed DataFrames
-            a, schemas_a = self.load_and_normalize(df_a)
-            b, schemas_b = self.load_and_normalize(df_b)
+        # Normalize incoming preprocessed DataFrames or file paths
+        a, schemas_a = self.load_and_normalize(df_a, default_source_name=source_a_name)
+        b, schemas_b = self.load_and_normalize(df_b, default_source_name=source_b_name)
 
-            # Pass conditional estimation based on pipeline toggles
-            fx_rates = self.fx_estimator.estimate_pair_rates(a, b) if self.config.enable_fx else {}
-            fee_profiles = self.fee_inferer.learn_fee_profiles(a, b) if self.config.enable_gateway else []
+        # Pass conditional estimation based on pipeline toggles
+        fx_rates = self.fx_estimator.estimate_pair_rates(a, b) if self.config.enable_fx else {}
+        fee_profiles = self.fee_inferer.learn_fee_profiles(a, b) if self.config.enable_gateway else []
 
-            unmatched_a = set(a.index)
-            unmatched_b = set(b.index)
-            results: List[Dict[str, Any]] = []
+        unmatched_a = set(a.index)
+        unmatched_b = set(b.index)
+        results: List[Dict[str, Any]] = []
 
-            # Pass 1: Exact matches (always enabled as baseline)
-            self._exact_match_pass(a, b, unmatched_a, unmatched_b, results, fx_rates)
+        # Pass 1: Exact matches (always enabled as baseline)
+        self._exact_match_pass(a, b, unmatched_a, unmatched_b, results, fx_rates)
 
-            # Pass 2: Fuzzy matches (if enabled)
-            if self.config.enable_fuzzy:
-                self._fuzzy_match_pass(a, b, unmatched_a, unmatched_b, results, fx_rates)
+        # Pass 2: Fuzzy matches (if enabled)
+        if self.config.enable_fuzzy:
+            self._fuzzy_match_pass(a, b, unmatched_a, unmatched_b, results, fx_rates)
 
-            # Pass 3: Gateway fee matches (if enabled)
-            if self.config.enable_gateway:
-                self._fee_match_pass(a, b, unmatched_a, unmatched_b, results, fee_profiles)
+        # Pass 3: Gateway fee matches (if enabled)
+        if self.config.enable_gateway:
+            self._fee_match_pass(a, b, unmatched_a, unmatched_b, results, fee_profiles)
 
-            # Pass 4: Split payment matches (if enabled)
-            if self.config.enable_split:
-                self._split_match_pass(a, b, unmatched_a, unmatched_b, results)
+        # Pass 4: Split payment matches (if enabled)
+        if self.config.enable_split:
+            self._split_match_pass(a, b, unmatched_a, unmatched_b, results)
 
-            unmatched_a_df = a.loc[sorted(unmatched_a)].copy()
-            unmatched_b_df = b.loc[sorted(unmatched_b)].copy()
-            matches_df = pd.DataFrame(results)
+        engine_unmatched_a_df = a.loc[sorted(unmatched_a)].copy()
+        engine_unmatched_b_df = b.loc[sorted(unmatched_b)].copy()
+        matches_df = pd.DataFrame(results)
 
-            summary = self._build_summary(
-                a, b, matches_df, unmatched_a_df, unmatched_b_df,
-                schemas_a, schemas_b, fx_rates, fee_profiles
+        # --------------------------------------------------------------
+        # Post-match exception audit
+        # --------------------------------------------------------------
+        audit_failed = False
+        try:
+            exceptions = audit_exceptions(
+                a,
+                b,
+                self.config.date_window_days,
+                entity_column=self.config.audit_entity_column,
+                direction_column=self.config.audit_direction_column,
+                trace_pattern=self.config.audit_trace_pattern,
             )
-
-            return {
-                "matches": matches_df,
-                "unmatched_a": unmatched_a_df,
-                "unmatched_b": unmatched_b_df,
-                "unmatched_a_rows": _serialize_df_rows(unmatched_a_df),
-                "unmatched_b_rows": _serialize_df_rows(unmatched_b_df),
-                "summary": summary,
-                "schemas_a": schemas_a,
-                "schemas_b": schemas_b,
-                "fx_rates": fx_rates,
-                "fee_profiles": fee_profiles,
+        except Exception as exc:
+            audit_failed = True
+            exceptions = {
+                "items": [],
+                "counts": {},
+                "total": 0,
+                "timing_shifts_ignored": [],
+                "timing_shift_count": 0,
+                "error": f"{type(exc).__name__}: {exc}",
             }
 
+        # Decide what the report shows as "unmatched / exceptions".
+        use_exceptions = self.config.report_exceptions_as_unmatched and not audit_failed
 
+        if use_exceptions:
+            rows_a, rows_b = build_exception_rows(exceptions["items"])
+
+            # Safety net: engine-unmatched rows that the audit did not flag
+            # (e.g. identical records the matcher failed to pair) must never
+            # disappear from the report.
+            covered_a = {r["source_row"] for r in rows_a}
+            covered_a |= {i["source_a_row"] for i in exceptions["items"] if i["source_a_row"] is not None}
+            covered_b = {r["source_row"] for r in rows_b}
+            covered_b |= {i["source_b_row"] for i in exceptions["items"] if i["source_b_row"] is not None}
+            unresolved = 0
+
+            for _, r in engine_unmatched_a_df.iterrows():
+                if int(r["source_row"]) not in covered_a:
+                    row = _tx_row_to_dict(r["_transaction"].to_dict())
+                    row.update(
+                        {
+                            "exception_type": "UNRESOLVED_ENGINE_UNMATCHED",
+                            "exception_detail": "Engine could not match this ledger record and no specific discrepancy was identified.",
+                            "trace_key": None,
+                        }
+                    )
+                    rows_a.append(row)
+                    unresolved += 1
+
+            for _, r in engine_unmatched_b_df.iterrows():
+                if int(r["source_row"]) not in covered_b:
+                    row = _tx_row_to_dict(r["_transaction"].to_dict())
+                    row.update(
+                        {
+                            "exception_type": "UNRESOLVED_ENGINE_UNMATCHED",
+                            "exception_detail": "Engine could not match this statement record and no specific discrepancy was identified.",
+                            "trace_key": None,
+                        }
+                    )
+                    rows_b.append(row)
+                    unresolved += 1
+
+            if unresolved:
+                exceptions["counts"]["UNRESOLVED_ENGINE_UNMATCHED"] = unresolved
+                exceptions["total"] += unresolved
+
+            report_a_df = pd.DataFrame(rows_a)
+            report_b_df = pd.DataFrame(rows_b)
+        else:
+            report_a_df = engine_unmatched_a_df
+            report_b_df = engine_unmatched_b_df
+
+        summary = self._build_summary(
+            a, b, matches_df, report_a_df, report_b_df,
+            schemas_a, schemas_b, fx_rates, fee_profiles
+        )
+
+        # Additive summary fields (existing keys keep their names).
+        summary["exception_total"] = int(exceptions.get("total", 0))
+        summary["exception_counts"] = dict(exceptions.get("counts", {}))
+        summary["timing_shift_count"] = int(exceptions.get("timing_shift_count", 0))
+        summary["engine_unmatched_source_a"] = int(len(engine_unmatched_a_df))
+        summary["engine_unmatched_source_b"] = int(len(engine_unmatched_b_df))
+        summary["engine_match_rate_source_a_percent"] = summary["match_rate_source_a_percent"]
+
+        if use_exceptions:
+            involved_a = {
+                i["source_a_row"] for i in exceptions["items"] if i["source_a_row"] is not None
+            }
+            involved_a |= {int(r["source_row"]) for r in report_a_df.to_dict("records")} if not report_a_df.empty else set()
+            clean_rate = 100.0 * (len(a) - len(involved_a)) / max(len(a), 1)
+            # The headline match rate now excludes records that carry a discrepancy.
+            summary["match_rate_source_a_percent"] = round(clean_rate, 2)
+
+        if audit_failed:
+            summary["exception_audit_error"] = exceptions.get("error")
+
+        return {
+            "matches": matches_df,
+            "unmatched_a": report_a_df,
+            "unmatched_b": report_b_df,
+            "unmatched_a_rows": _serialize_df_rows(report_a_df),
+            "unmatched_b_rows": _serialize_df_rows(report_b_df),
+            "summary": summary,
+            "schemas_a": schemas_a,
+            "schemas_b": schemas_b,
+            "fx_rates": fx_rates,
+            "fee_profiles": fee_profiles,
+            "exceptions": exceptions,
+        }
 
     def _exact_match_pass(
         self,
@@ -1888,7 +2495,7 @@ class SmartReconEngine:
             "unmatched_source_a": int(len(unmatched_a)),
             "unmatched_source_b": int(len(unmatched_b)),
             "unmatched_a_rows": _serialize_df_rows(unmatched_a),
-            "unmatched_b_rows": _serialize_df_rows(unmatched_b),    
+            "unmatched_b_rows": _serialize_df_rows(unmatched_b),
             "match_types": match_counts,
             "match_rate_source_a_percent": round(100.0 * len(matches) / max(len(a), 1), 2),
             "fx_rates_inferred": fx_summary,
@@ -1898,7 +2505,7 @@ class SmartReconEngine:
                 "source_b": schemas_b,
             },
         }
-    
+
 
 def dataframe_for_output(df: pd.DataFrame) -> pd.DataFrame:
     """Remove internal object columns before writing CSV."""
@@ -1931,8 +2538,10 @@ def json_safe(value: Any) -> Any:
     return value
 
 
-def write_results(result: Dict[str, Any], output_dir: str = "reconciliation_output") -> Path:
-    out = Path(output_dir)
+def write_results(result: Dict[str, Any], output_dir: Union[str, Path] = "reconciliation_output") -> Path:
+    # NOTE: no print() here. Writing to stdout would ignore --silent and can
+    # corrupt output that Laravel reads from the process.
+    out = Path(output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
 
     matches = dataframe_for_output(result["matches"])
@@ -1946,6 +2555,10 @@ def write_results(result: Dict[str, Any], output_dir: str = "reconciliation_outp
     summary = json_safe(result["summary"])
     with open(out / "reconciliation_summary.json", "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2, ensure_ascii=False)
+
+    if "exceptions" in result:
+        with open(out / "reconciliation_exceptions.json", "w", encoding="utf-8") as handle:
+            json.dump(json_safe(result["exceptions"]), handle, indent=2, ensure_ascii=False)
 
     return out
 
@@ -1975,41 +2588,57 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--enable-split", action="store_true", default=False, help="Enable split payment detection pass.")
     parser.add_argument("--enable-gateway", action="store_true", default=False, help="Enable gateway fee inference pass.")
 
-    # silent
+    # Optional audit overrides
+    parser.add_argument("--audit-entity-column", default=None, help="Counterparty column name used by the exception audit.")
+    parser.add_argument("--audit-direction-column", default=None, help="DEBIT/CREDIT column name used by the exception audit.")
+    parser.add_argument("--audit-trace-pattern", default=None, help="Regex used to extract the trace ID from the reference.")
     parser.add_argument(
-    "--silent",
-    action="store_true",
-    default=False,
-    help="Suppress stdout output",
+        "--raw-unmatched",
+        action="store_true",
+        default=False,
+        help="Report the engine's raw unmatched rows instead of categorized exceptions.",
+    )
+
+    # Silent execution flag
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        default=False,
+        help="Suppress stdout output",
     )
     return parser
 
 
-
-
 def load_and_preprocess(file_path: str) -> pd.DataFrame:
-    # 1. Read raw CSV file
-    df = pd.read_csv(file_path)
+    """Load file safely across supported extensions and apply optional classification."""
+    loader = FileLoader()
+    frames = loader.load(file_path)
 
-    # 2. Run dynamic column classification & renaming
-    classifier = SelfLearningColumnClassifier(
-        taxonomy_dir="config/taxonomy",
-        file_name=file_path
-    )
-    df_clean = classifier.classify_and_rename(df)
+    if not frames:
+        raise ValueError(f"Unable to read tabular data from {file_path}")
 
-    # 3. Proceed with clean DataFrame ('amount', 'date', 'reference' mapped)
-    return df_clean
+    df = pd.concat(frames, ignore_index=True)
 
+    # Run dynamic column classification & renaming if available
+    if SelfLearningColumnClassifier is not None:
+        try:
+            classifier = SelfLearningColumnClassifier(
+                taxonomy_dir="config/taxonomy",
+                file_name=file_path
+            )
+            df = classifier.classify_and_rename(df)
+        except Exception:
+            pass
+
+    return df
 
 
 def _serialize_df_rows(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    if df.empty:
+    if df is None or df.empty:
         return []
-    # Using pandas to_json handles custom objects, timestamps, and UUIDs properly
-    return json.loads(df.to_json(orient="records", date_format="iso"))
-
-
+    # Strip internal object columns (like _transaction) before JSON serialization
+    clean_df = dataframe_for_output(df)
+    return json.loads(clean_df.to_json(orient="records", date_format="iso"))
 
 
 def main() -> int:
@@ -2043,64 +2672,80 @@ def main() -> int:
         enable_fx=enable_fx,
         enable_split=enable_split,
         enable_gateway=enable_gateway,
+        audit_entity_column=args.audit_entity_column,
+        audit_direction_column=args.audit_direction_column,
+        audit_trace_pattern=args.audit_trace_pattern,
+        report_exceptions_as_unmatched=not args.raw_unmatched,
     )
 
     try:
-        # 1. Preprocess files first
+        # 1. Preprocess files in-memory without overwriting source files on disk
         df_a = load_and_preprocess(args.source_a)
         df_b = load_and_preprocess(args.source_b)
 
-        # 2. Save preprocessed DataFrames back to disk so engine receives file paths
-        df_a.to_csv(args.source_a, index=False)
-        df_b.to_csv(args.source_b, index=False)
-
-        # 3. Instantiate engine
+        # 2. Instantiate engine
         engine = SmartReconEngine(config)
 
-        # 4. Run reconciliation with path strings
-        result = engine.reconcile(args.source_a, args.source_b)
+        # 3. Run reconciliation directly on preprocessed DataFrames
+        result = engine.reconcile(
+            df_a,
+            df_b,
+            source_a_name=Path(args.source_a).name,
+            source_b_name=Path(args.source_b).name,
+        )
         output_dir = write_results(result, args.output)
 
         summary = result["summary"]
-        print("\nSmart Reconciliation completed successfully.")
-        print("-" * 55)
-        print(f"Source A transactions : {summary['source_a_transactions']}")
-        print(f"Source B transactions : {summary['source_b_transactions']}")
-        print(f"Matched transactions  : {summary['matched_transactions_or_groups']}")
-        print(f"Unmatched A           : {summary['unmatched_source_a']}")
-        print(f"Unmatched B           : {summary['unmatched_source_b']}")
-        print(f"Match rate A          : {summary['match_rate_source_a_percent']}%")
-        print(f"Output directory      : {output_dir.resolve()}")
 
-        if summary["match_types"]:
-            print("\nMatch types:")
-            for match_type, count in summary["match_types"].items():
-                print(f"  {match_type}: {count}")
+        if not args.silent:
+            print("\nSmart Reconciliation completed successfully.")
+            print("-" * 55)
+            print(f"Source A transactions : {summary['source_a_transactions']}")
+            print(f"Source B transactions : {summary['source_b_transactions']}")
+            print(f"Matched transactions  : {summary['matched_transactions_or_groups']}")
+            print(f"Exceptions A          : {summary['unmatched_source_a']}")
+            print(f"Exceptions B          : {summary['unmatched_source_b']}")
+            print(f"Total exceptions      : {summary['exception_total']}")
+            print(f"Match rate A          : {summary['match_rate_source_a_percent']}%")
+            print(f"Output directory      : {output_dir.resolve()}")
 
-        if summary["fx_rates_inferred"]:
-            print("\nInferred FX rates:")
-            for pair, info in summary["fx_rates_inferred"].items():
-                print(f"  {pair}: {info['rate']:.8f} (confidence {info['confidence']:.1f})")
+            if summary.get("exception_counts"):
+                print("\nException breakdown:")
+                for kind, count in summary["exception_counts"].items():
+                    print(f"  {kind}: {count}")
+                print(f"  (timing shifts ignored: {summary['timing_shift_count']})")
 
-        if summary["fee_profiles_learned"]:
-            profiles = summary["fee_profiles_learned"]
-            print(f"\nLearned gateway fee profiles ({len(profiles)} fee bands detected):")
-            for profile in profiles[:5]:
-                print(f"  • {profile['fee_percent'] * 100:.2f}% ({profile['observations']} observations)")
-            if len(profiles) > 5:
-                print(f"  ... and {len(profiles) - 5} other minor fee profile patterns.")
+            if summary["match_types"]:
+                print("\nMatch types:")
+                for match_type, count in summary["match_types"].items():
+                    print(f"  {match_type}: {count}")
 
-        print("\nFiles written:")
-        print(f"  {output_dir / 'reconciliation_matches.csv'}")
-        print(f"  {output_dir / 'reconciliation_unmatched_a.csv'}")
-        print(f"  {output_dir / 'reconciliation_unmatched_b.csv'}")
-        print(f"  {output_dir / 'reconciliation_summary.json'}")
+            if summary["fx_rates_inferred"]:
+                print("\nInferred FX rates:")
+                for pair, info in summary["fx_rates_inferred"].items():
+                    print(f"  {pair}: {info['rate']:.8f} (confidence {info['confidence']:.1f})")
+
+            if summary["fee_profiles_learned"]:
+                profiles = summary["fee_profiles_learned"]
+                print(f"\nLearned gateway fee profiles ({len(profiles)} fee bands detected):")
+                for profile in profiles[:5]:
+                    print(f"  • {profile['fee_percent'] * 100:.2f}% ({profile['observations']} observations)")
+                if len(profiles) > 5:
+                    print(f"  ... and {len(profiles) - 5} other minor fee profile patterns.")
+
+            print("\nFiles written:")
+            print(f"  {output_dir / 'reconciliation_matches.csv'}")
+            print(f"  {output_dir / 'reconciliation_unmatched_a.csv'}")
+            print(f"  {output_dir / 'reconciliation_unmatched_b.csv'}")
+            print(f"  {output_dir / 'reconciliation_summary.json'}")
+            print(f"  {output_dir / 'reconciliation_exceptions.json'}")
 
         return 0
 
     except Exception as exc:
         print(f"\nReconciliation failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -102,8 +102,8 @@
 
             <div class="p-4 border-t border-neutral-800 flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-semibold text-white">System Administrator</p>
-                    <p class="text-[10px] text-neutral-500">Admin Role</p>
+                    <p class="text-xs font-semibold text-white">System Tenant</p>
+                    <p class="text-[10px] text-neutral-500">Reconciliation Specialist</p>
                 </div>
                 <form action="/logout" method="POST">
                     @csrf

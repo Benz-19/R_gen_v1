@@ -373,7 +373,7 @@
             <div>
 
                 <p class="text-xs font-semibold text-white">
-                    System Administrator
+                    Finance Administrator
                 </p>
 
                 <p class="text-[10px] text-neutral-500">

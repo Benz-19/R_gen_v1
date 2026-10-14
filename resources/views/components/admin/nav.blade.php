@@ -19,7 +19,7 @@
         <span class="px-2 py-0.5 text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full font-mono">{{ $total_unmatched_discrepancies }}</span>
     </a>
     
-    <a href="/data-sources" 
+    <a href="#" 
        class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 {{ request()->is('data-sources*') ? 'bg-white/10 text-white font-semibold border border-white/10 shadow-sm' : 'text-neutral-400 hover:bg-neutral-900 hover:text-white' }}">
         Data Sources & APIs
     </a>

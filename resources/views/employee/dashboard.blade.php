@@ -12,6 +12,30 @@
             background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                               linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
         }
+        
+        /* Staggered Spring Reveal */
+        @keyframes revealCard {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.96);
+                filter: blur(4px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+
+        .animate-reveal {
+            opacity: 0;
+            animation: revealCard 6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .delay-1 { animation-delay: 0.05s; }
+        .delay-2 { animation-delay: 0.12s; }
+        .delay-3 { animation-delay: 0.18s; }
+        .delay-4 { animation-delay: 0.24s; }
     </style>
 </head>
 <body class="bg-black text-slate-100 font-sans antialiased bg-grid-pattern min-h-screen relative">
@@ -64,7 +88,7 @@
             <div class="p-4 border-t border-neutral-800 flex items-center justify-between">
                 <div>
                     <p class="text-xs font-semibold text-white">Organization Staff</p>
-                    <p class="text-[10px] text-neutral-500">Employee Role</p>
+                    <p class="text-[10px] text-neutral-500">Reconciliation Specialist</p>
                 </div>
                 <form action="/logout" method="POST">
                     @csrf

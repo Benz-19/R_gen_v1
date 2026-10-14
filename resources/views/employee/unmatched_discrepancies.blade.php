@@ -263,7 +263,7 @@
                     </p>
 
                     <p class="text-[10px] text-neutral-500">
-                        Employee Role
+                        Reconciliation Specialist
                     </p>
 
                 </div>
