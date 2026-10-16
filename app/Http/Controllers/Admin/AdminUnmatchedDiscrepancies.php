@@ -12,6 +12,24 @@ class AdminUnmatchedDiscrepancies{
         return (new WorkspaceService)->get_workspace_id($user_id);
     }
 
+    private function getReconciliationTotalExceptionsByTeam($workspace_id)
+    {
+        return (new ReconciliationService)->getReconciliationTotalExceptions($workspace_id);
+    }
+
+    private function getReconciliationTotalExceptionsByUser($user_id)
+    {
+        return (new ReconciliationService)->getReconciliationTotalExceptionsByUser($user_id);
+    }
+
+    private function getTotalReconciled($workspace_id){
+        return (new ReconciliationService)->getTotalReconciled($workspace_id);
+    }
+
+    private function getTotalReconciledByUser($user_id){
+        return (new ReconciliationService)->getTotalReconciledByUser($user_id);
+    }
+
     private function getReconciliationExecutedBy($workspace_id){
         return (new ReconciliationService)->ReconciliationExecutedBy($workspace_id);
     }
@@ -29,10 +47,13 @@ class AdminUnmatchedDiscrepancies{
 
         $total_unmatched_discrepancies = $this->totalExceptions($runs);
         $reconciliation_executed_by = $this->getReconciliationExecutedBy($workspace_id);
-    
+        $total_unmatched_discrepancies_by_team = $this->getReconciliationTotalExceptionsByTeam($workspace_id);
+        $total_unmatched_discrepancies_by_user = $this->getReconciliationTotalExceptionsByUser($user_id);
+
         return view(
             'admin.unmatched_discrepancies',
-            compact('runs', 'total_unmatched_discrepancies', 'reconciliation_executed_by')
+            compact('runs', 'total_unmatched_discrepancies', 'reconciliation_executed_by', 
+                    'total_unmatched_discrepancies_by_team', 'total_unmatched_discrepancies_by_user')
         );
     }
 

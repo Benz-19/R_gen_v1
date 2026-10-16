@@ -2198,7 +2198,7 @@
                             }
 
                             .report-shell {
-                                max-width: 1100px;
+                                max-width: fit-content;
                                 margin: 30px auto;
                                 background: white;
                                 border-radius: 14px;

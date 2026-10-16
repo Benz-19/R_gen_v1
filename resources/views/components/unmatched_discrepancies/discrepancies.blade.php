@@ -1,5 +1,6 @@
 @props([
-    'total_unmatched_discrepancies',
+    'total_unmatched_discrepancies_by_team',
+    'total_unmatched_discrepancies_by_user',
     'runs',
     'reconciliation_executed_by',
 ])
@@ -25,7 +26,8 @@
 
             <div class="animate-reveal delay-1 bg-black/40 border border-neutral-800 p-5 rounded-xl backdrop-blur-sm hover:border-neutral-700 transition-colors">
                 <p class="text-xs text-neutral-400 font-medium uppercase tracking-wider">Total Unmatched Analysis</p>
-                <p class="text-2xl font-bold mt-2 text-white font-mono">{{ $total_unmatched_discrepancies }}</p>
+                <p class="text-xs font-bold mt-2 text-white font-mono">Obtained by team: {{ $total_unmatched_discrepancies_by_team }}</p>
+                <p class="text-xs font-bold mt-2 text-white font-mono">Obtained by you: {{ $total_unmatched_discrepancies_by_user }}</p>
             </div>
         </div>
 
@@ -1730,7 +1732,7 @@
                     </div>
 
 
-                    <div class="report-shell">
+                    <div class="report-shell" style="max-width:fix-content;">
 
                         <div class="report-header">
 

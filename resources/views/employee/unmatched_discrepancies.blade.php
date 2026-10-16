@@ -249,7 +249,7 @@
 
                 </div>
 
-                <x-employee.nav :total_unmatched_discrepancies="$total_unmatched_discrepancies" />
+                <x-employee.nav :total_unmatched_discrepancies="$total_unmatched_discrepancies_by_user" />
 
             </div>
 
@@ -295,7 +295,9 @@
         
         <x-unmatched_discrepancies.discrepancies
             :runs="$runs"
-            :total_unmatched_discrepancies="$total_unmatched_discrepancies"
+            :total_unmatched_discrepancies_by_team="$total_unmatched_discrepancies_by_team"
+            :total_unmatched_discrepancies_by_user="$total_unmatched_discrepancies_by_user"
+            :reconciliation_executed_by="$reconciliation_executed_by"
         />
     </div>
 </body>

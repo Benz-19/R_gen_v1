@@ -298,6 +298,8 @@
             :runs="$runs"
             :total_unmatched_discrepancies="$total_unmatched_discrepancies"
             :reconciliation_executed_by="$reconciliation_executed_by"
+            :total_unmatched_discrepancies_by_team="$total_unmatched_discrepancies_by_team"
+            :total_unmatched_discrepancies_by_user="$total_unmatched_discrepancies_by_user"
         />
     </div>
 </body>
